@@ -136,10 +136,14 @@ export async function POST(request) {
     if (studErr) return Response.json({ error: studErr.message }, { status: 500 });
 
     if (mode === 'online') {
-      const links = (students || []).map((s) => ({
-        studentId: s.id,
-        url: `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${s.id}`,
-      }));
+      // Link only, but also generate a QR code per student so they can
+      // scan with a personal device instead of typing/finding the link.
+      const links = [];
+      for (const s of students || []) {
+        const url = `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${s.id}`;
+        const qrPng = await fetchQrPng(url, 200);
+        links.push({ studentId: s.id, url, qrPngBase64: Buffer.from(qrPng).toString('base64') });
+      }
       return Response.json({
         mode: 'online',
         microUnitId,
@@ -172,7 +176,7 @@ export async function POST(request) {
             attempt_number: v,
           });
         }
-        versions.push({ versionNumber: v, pdfBase64: Buffer.from(outBytes).toString('base64') });
+        versions.push({ versionNumber: v, pdfBase64: Buffer.from(outBytes).toString('base64'), questions });
       }
       results.push({ studentId: student.id, versions });
     }
