@@ -1,4 +1,4 @@
-// Real Supabase project connected 1783633160
+// force fresh deploy of all 4 missing pages 1783634715
 import './globals.css';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
