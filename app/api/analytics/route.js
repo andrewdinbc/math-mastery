@@ -24,17 +24,38 @@ export async function OPTIONS() {
 export async function GET(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return Response.json({ error: 'Not authenticated' }, { status: 401, headers: CORS_HEADERS });
+
+    // Two auth paths: normal teacher session (cookie-based, for in-app
+    // use), or a trusted cross-app call authenticated via
+    // MICRO_UNIT_SYNC_SECRET + a teacherEmail query param (same secret
+    // already used for the Lesson Planner micro-units sync - reused here
+    // rather than inventing a second secret, since assessment-tool has no
+    // Supabase Auth session of its own to forward).
+    const { searchParams } = new URL(request.url);
+    const syncSecret = request.headers.get('x-micro-unit-sync-secret');
+    const teacherEmailParam = searchParams.get('teacherEmail');
+
+    let teacherId;
+    if (syncSecret && process.env.MICRO_UNIT_SYNC_SECRET && syncSecret === process.env.MICRO_UNIT_SYNC_SECRET && teacherEmailParam) {
+      const { data: teacher } = await supabase.from('teachers').select('id').eq('email', teacherEmailParam).single();
+      if (!teacher) {
+        return Response.json({ error: `No Mastery Studio teacher account found for ${teacherEmailParam}` }, { status: 404, headers: CORS_HEADERS });
+      }
+      teacherId = teacher.id;
+    } else {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return Response.json({ error: 'Not authenticated' }, { status: 401, headers: CORS_HEADERS });
+      }
+      teacherId = user.id;
     }
 
     const { data: attempts, error: attErr } = await supabase
       .from('attempts')
       .select('*, micro_units!inner(strand, teacher_id, title), students!inner(display_name)')
-      .eq('micro_units.teacher_id', user.id);
+      .eq('micro_units.teacher_id', teacherId);
     if (attErr) return Response.json({ error: attErr.message }, { status: 500, headers: CORS_HEADERS });
 
     const rows = attempts || [];
