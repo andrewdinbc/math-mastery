@@ -104,8 +104,33 @@ export async function POST(request) {
       const submitUrl = `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${student.id}&mode=scan`;
       const qrPng = await fetchQrPng(submitUrl);
 
-      const pdfDoc = await PDFDocument.create();
-      const page = await drawWorksheetPage(pdfDoc, unit, questions, student.display_name, mode === 'blank');
+      // If a resource was uploaded for this unit, overlay the QR onto the
+      // first page of it (matching parent-portal's basePdfUrl pattern)
+      // instead of drawing a page from scratch.
+      let pdfDoc, page;
+      if (unit.resource_url) {
+        const baseRes = await fetch(unit.resource_url);
+        if (!baseRes.ok) throw new Error(`Could not fetch attached resource for this unit (status ${baseRes.status})`);
+        const contentType = baseRes.headers.get('content-type') || '';
+        const baseBytes = await baseRes.arrayBuffer();
+        if (contentType.includes('pdf') || unit.resource_url.toLowerCase().endsWith('.pdf')) {
+          pdfDoc = await PDFDocument.load(baseBytes);
+          page = pdfDoc.getPage(0);
+        } else {
+          // Image resource (png/jpg): create a page and place the image full-bleed.
+          pdfDoc = await PDFDocument.create();
+          page = pdfDoc.addPage([612, 792]);
+          const img = contentType.includes('png') || unit.resource_url.toLowerCase().endsWith('.png')
+            ? await pdfDoc.embedPng(baseBytes)
+            : await pdfDoc.embedJpg(baseBytes);
+          const { width, height } = page.getSize();
+          page.drawImage(img, { x: 0, y: 0, width, height });
+        }
+      } else {
+        pdfDoc = await PDFDocument.create();
+        page = await drawWorksheetPage(pdfDoc, unit, questions, student.display_name, mode === 'blank');
+      }
+
       const qrImage = await pdfDoc.embedPng(qrPng);
       const qrSize = 60;
       const { width, height } = page.getSize();
@@ -131,3 +156,4 @@ export async function POST(request) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
