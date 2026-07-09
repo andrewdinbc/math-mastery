@@ -208,7 +208,7 @@ export default function CreateMicroUnitPage() {
           <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} required style={inputStyle} /></label>
           <div style={{ display: 'flex', gap: 12 }}>
             <label style={{ flex: 1 }}>Grade<input value={grade} onChange={(e) => setGrade(e.target.value)} style={inputStyle} /></label>
-            <label style={{ flex: 1 }}>Strand<input value={strand} onChange={(e) => setStrand(e.target.value)} style={inputStyle} /></label>
+            <label style={{ flex: 1 }}>Topic Area<input value={strand} onChange={(e) => setStrand(e.target.value)} style={inputStyle} /></label>
             <label style={{ flex: 1 }}>Default Mastery %<input type="number" min="0" max="100" value={masteryPct} onChange={(e) => setMasteryPct(e.target.value)} style={inputStyle} /></label>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
