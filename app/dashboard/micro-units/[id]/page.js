@@ -16,6 +16,9 @@ export default function MicroUnitDetailPage() {
   const [students, setStudents] = useState([]);
   const [showAllVersions, setShowAllVersions] = useState({}); // studentId -> bool
   const [hoveredVersion, setHoveredVersion] = useState(null); // {studentId, versionNumber} | null
+  const [questionsPerPage, setQuestionsPerPage] = useState(10);
+  const [nameFile, setNameFile] = useState(null);
+  const [studentNames, setStudentNames] = useState(null); // {studentId: name} - loaded locally, sent once, never stored
 
   useEffect(() => {
     (async () => {
@@ -36,7 +39,7 @@ export default function MicroUnitDetailPage() {
       const res = await fetch('/api/generate-worksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder }),
+        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -118,6 +121,48 @@ export default function MicroUnitDetailPage() {
               }} />
             </span>
           </label>
+        )}
+        {mode !== 'online' && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <span>Questions per page</span>
+            <input
+              type="number"
+              min={10}
+              value={questionsPerPage}
+              onChange={(e) => setQuestionsPerPage(Math.max(10, Number(e.target.value) || 10))}
+              style={{ width: 60, padding: 4, border: '1px solid #ddd4c2', borderRadius: 4 }}
+            />
+            <span style={{ color: '#888' }}>(minimum 10)</span>
+          </label>
+        )}
+        {mode === 'printed' && (
+          <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 8, padding: 10, fontSize: 12 }}>
+            <div style={{ marginBottom: 4 }}>
+              Names aren't stored in the cloud — optionally load your local roster file to print real names on this batch only (nothing is saved).
+            </div>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setNameFile(file);
+                const text = await file.text();
+                const lines = text.trim().split('\n').slice(1);
+                const byQr = {};
+                lines.forEach((line) => {
+                  const [qrCode, firstName] = line.split(',');
+                  if (qrCode && firstName) byQr[qrCode.trim()] = firstName.trim();
+                });
+                const map = {};
+                students.forEach((s) => {
+                  if (byQr[s.qr_code]) map[s.id] = byQr[s.qr_code];
+                });
+                setStudentNames(map);
+              }}
+            />
+            {studentNames && <div style={{ color: '#1a7a3e', marginTop: 4 }}>✓ {Object.keys(studentNames).length} name(s) matched — will print on this batch only.</div>}
+          </div>
         )}
         {mode !== 'online' && (
           <div style={{ fontSize: 12, color: '#888' }}>Generates {10} different versions per student.</div>
@@ -218,4 +263,5 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
