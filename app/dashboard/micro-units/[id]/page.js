@@ -64,6 +64,7 @@ export default function MicroUnitDetailPage() {
         </button>
       </div>
       {genResult?.error && <div style={{ color: '#c00' }}>{genResult.error}</div>}
+      {genResult?.exemplarNote && <div style={{ color: '#b57c2a', background: '#fff8ee', border: '1px solid #ddd4c2', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13 }}>ℹ️ {genResult.exemplarNote}</div>}
       {genResult?.links && (
         <ul>
           {genResult.links.map((l) => <li key={l.studentId}><a href={l.url} target="_blank" rel="noreferrer">{l.displayName || l.studentId}</a></li>)}
@@ -74,7 +75,7 @@ export default function MicroUnitDetailPage() {
           <div style={{ color: '#1a7a3e', marginBottom: 8 }}>✓ Generated {genResult.worksheets.length} worksheet PDF(s):</div>
           <ul>
             {genResult.worksheets.map((w) => {
-              const studentName = students.find((s) => s.id === w.studentId)?.display_name || w.studentId;
+              const studentName = w.studentId === 'exemplar' ? 'Example Student (exemplar)' : (students.find((s) => s.id === w.studentId)?.display_name || w.studentId);
               const dataUrl = `data:application/pdf;base64,${w.pdfBase64}`;
               return (
                 <li key={w.studentId} style={{ marginBottom: 4 }}>
@@ -110,3 +111,4 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
