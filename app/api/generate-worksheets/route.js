@@ -4,17 +4,19 @@ import { cookies } from 'next/headers';
 
 // Generates worksheets for a micro-unit in one of three modes, adapted from
 // parent-portal's qr-worksheet pattern (app/api/qr-worksheet/route.js):
-//   'printed' — one PDF per student, name pre-filled, QR top-right
-//   'blank'   — one PDF per student, blank name line, QR top-right
+//   'printed' — QR pre-filled, name pre-filled where known, 10 versions/student
+//   'blank'   — QR pre-filled, student writes name, 10 versions/student
 //   'online'  — no PDF, just a list of direct practice links
 //
-// Randomization: if the micro_unit is randomizable, each student's copy
-// gets its own randomized numeric values derived from question_template,
-// so no two printed copies are identical (mirrors the CommonCoreSheets
-// reference worksheet Aj shared — same structure, different numbers, with
-// an answer key generated alongside).
+// Standard: 10 different randomized versions generated per student for
+// printed/blank modes, per Aj's direction - gives real practice variety
+// rather than one static copy reused every time.
+//
+// shuffleOrder: independent of numeric randomization - also shuffles the
+// ORDER questions appear in, when true.
 
 const QR_API = 'https://api.qrserver.com/v1/create-qr-code/';
+const VERSIONS_PER_STUDENT = 10;
 
 async function fetchQrPng(data, sizePx = 150) {
   const url = `${QR_API}?size=${sizePx}x${sizePx}&data=${encodeURIComponent(data)}`;
@@ -23,37 +25,48 @@ async function fetchQrPng(data, sizePx = 150) {
   return res.arrayBuffer();
 }
 
-function randomizeTemplate(template) {
-  // question_template.questions is an array of {prompt, variables: {min,max}, answer_formula}.
-  // Substitutes fresh random values into each question's variable ranges
-  // while keeping the underlying structure/difficulty the same.
-  if (!template.randomizable_ranges) return template.questions;
-  return template.questions.map((q) => {
-    const vars = {};
-    for (const [key, range] of Object.entries(template.randomizable_ranges)) {
-      vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-    }
-    let prompt = q.prompt;
-    for (const [key, val] of Object.entries(vars)) {
-      prompt = prompt.replaceAll(`{${key}}`, val);
-    }
-    return { ...q, prompt, resolvedVariables: vars };
-  });
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
-async function drawWorksheetPage(pdfDoc, unit, questions, studentName, isBlank) {
+function buildQuestions(template, { randomize, shuffleOrder }) {
+  let questions = template.questions;
+  if (randomize && template.randomizable_ranges) {
+    questions = questions.map((q) => {
+      const vars = {};
+      for (const [key, range] of Object.entries(template.randomizable_ranges)) {
+        vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+      }
+      let prompt = q.prompt;
+      for (const [key, val] of Object.entries(vars)) {
+        prompt = prompt.replaceAll(`{${key}}`, val);
+      }
+      return { ...q, prompt, resolvedVariables: vars };
+    });
+  }
+  if (shuffleOrder) questions = shuffle(questions);
+  return questions;
+}
+
+async function drawWorksheetPage(pdfDoc, unit, questions, studentName, isBlank, versionNumber) {
   const page = pdfDoc.addPage([612, 792]); // US Letter
   const { width, height } = page.getSize();
 
   page.drawText(unit.title || 'Math Practice', { x: 40, y: height - 50, size: 16 });
+  page.drawText(`Version ${versionNumber} of ${VERSIONS_PER_STUDENT}`, { x: width - 140, y: height - 50, size: 10, color: rgb(0.5, 0.5, 0.5) });
+
   if (isBlank) {
     page.drawText('Name: _______________________', { x: 40, y: height - 80, size: 12 });
   } else {
-    // Names may be end-to-end encrypted (stored as 'enc:...') - the server
-  // never has the key, so it can never print the real name. Always fall
-  // back to a blank line in that case rather than printing raw ciphertext.
-  const safeName = studentName && !studentName.startsWith('enc:') ? studentName : '';
-  page.drawText(`Name: ${safeName}`, { x: 40, y: height - 80, size: 12 });
+    // Names may not be known server-side at all (never stored in the
+    // cloud, per Aj's privacy design) - always fall back to a blank line.
+    const safeName = studentName && !studentName.startsWith('enc:') ? studentName : '';
+    page.drawText(`Name: ${safeName}`, { x: 40, y: height - 80, size: 12 });
   }
 
   let y = height - 130;
@@ -66,10 +79,42 @@ async function drawWorksheetPage(pdfDoc, unit, questions, studentName, isBlank) 
   return page;
 }
 
+async function generateOnePdf(unit, questions, student, mode, qrPng) {
+  let pdfDoc, page;
+  if (unit.resource_url) {
+    const baseRes = await fetch(unit.resource_url);
+    if (!baseRes.ok) throw new Error(`Could not fetch attached resource for this unit (status ${baseRes.status})`);
+    const contentType = baseRes.headers.get('content-type') || '';
+    const baseBytes = await baseRes.arrayBuffer();
+    if (contentType.includes('pdf') || unit.resource_url.toLowerCase().endsWith('.pdf')) {
+      pdfDoc = await PDFDocument.load(baseBytes);
+      page = pdfDoc.getPage(0);
+    } else {
+      pdfDoc = await PDFDocument.create();
+      page = pdfDoc.addPage([612, 792]);
+      const img = contentType.includes('png') || unit.resource_url.toLowerCase().endsWith('.png')
+        ? await pdfDoc.embedPng(baseBytes)
+        : await pdfDoc.embedJpg(baseBytes);
+      const { width, height } = page.getSize();
+      page.drawImage(img, { x: 0, y: 0, width, height });
+    }
+  } else {
+    pdfDoc = await PDFDocument.create();
+    page = await drawWorksheetPage(pdfDoc, unit, questions, student.display_name, mode === 'blank', student.__versionNumber);
+  }
+
+  const qrImage = await pdfDoc.embedPng(qrPng);
+  const qrSize = 60;
+  const { width, height } = page.getSize();
+  page.drawImage(qrImage, { x: width - qrSize - 20, y: height - qrSize - 20, width: qrSize, height: qrSize });
+
+  return pdfDoc.save();
+}
+
 export async function POST(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const { microUnitId, mode } = await request.json();
+    const { microUnitId, mode, shuffleOrder } = await request.json();
     if (!microUnitId || !mode) {
       return Response.json({ error: 'microUnitId and mode required' }, { status: 400 });
     }
@@ -93,7 +138,6 @@ export async function POST(request) {
     if (mode === 'online') {
       const links = (students || []).map((s) => ({
         studentId: s.id,
-        displayName: s.display_name && !s.display_name.startsWith('enc:') ? s.display_name : null, // encrypted names can't be shown server-side
         url: `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${s.id}`,
       }));
       return Response.json({
@@ -104,86 +148,44 @@ export async function POST(request) {
       });
     }
 
-    // 'printed' or 'blank': generate one PDF per student, zip-less — return
-    // the first student's PDF directly and a manifest for the rest (a real
-    // bulk-download flow would zip these; kept simple for the first pass).
-    //
-    // Empty roster: generate exactly 1 exemplar (using a placeholder
-    // "Example Student" name/QR) so the teacher can see the actual worksheet
-    // format before adding a real roster, rather than silently generating
-    // nothing with no explanation.
+    // Empty roster: generate 1 exemplar student's worth (still 10 versions)
+    // so the teacher can see real format/variety before adding a roster.
     const isExemplar = (students || []).length === 0;
-    const studentList = isExemplar
-      ? [{ id: 'exemplar', display_name: 'Example Student', qr_code: 'EXEMPLAR-QR' }]
-      : students;
+    const studentList = isExemplar ? [{ id: 'exemplar', display_name: 'Example Student', qr_code: 'EXEMPLAR-QR' }] : students;
 
     const results = [];
     for (const student of studentList) {
-      const questions = unit.randomizable ? randomizeTemplate(unit.question_template) : unit.question_template.questions;
+      const versions = [];
       const submitUrl = `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${student.id}&mode=scan`;
-      const qrPng = await fetchQrPng(submitUrl);
+      const qrPng = await fetchQrPng(submitUrl); // same QR across all 10 versions - it identifies the STUDENT, not the version
 
-      // If a resource was uploaded for this unit, overlay the QR onto the
-      // first page of it (matching parent-portal's basePdfUrl pattern)
-      // instead of drawing a page from scratch.
-      let pdfDoc, page;
-      if (unit.resource_url) {
-        const baseRes = await fetch(unit.resource_url);
-        if (!baseRes.ok) throw new Error(`Could not fetch attached resource for this unit (status ${baseRes.status})`);
-        const contentType = baseRes.headers.get('content-type') || '';
-        const baseBytes = await baseRes.arrayBuffer();
-        if (contentType.includes('pdf') || unit.resource_url.toLowerCase().endsWith('.pdf')) {
-          pdfDoc = await PDFDocument.load(baseBytes);
-          page = pdfDoc.getPage(0);
-        } else {
-          // Image resource (png/jpg): create a page and place the image full-bleed.
-          pdfDoc = await PDFDocument.create();
-          page = pdfDoc.addPage([612, 792]);
-          const img = contentType.includes('png') || unit.resource_url.toLowerCase().endsWith('.png')
-            ? await pdfDoc.embedPng(baseBytes)
-            : await pdfDoc.embedJpg(baseBytes);
-          const { width, height } = page.getSize();
-          page.drawImage(img, { x: 0, y: 0, width, height });
+      for (let v = 1; v <= VERSIONS_PER_STUDENT; v++) {
+        const questions = buildQuestions(unit.question_template, { randomize: unit.randomizable, shuffleOrder: !!shuffleOrder });
+        const outBytes = await generateOnePdf(unit, questions, { ...student, __versionNumber: v }, mode, qrPng);
+
+        if (!isExemplar) {
+          await supabase.from('attempts').insert({
+            student_id: student.id,
+            micro_unit_id: microUnitId,
+            submitted_via: mode === 'blank' ? 'blank_scan' : 'scan',
+            raw_answers: { generated: true, version: v, questions },
+            attempt_number: v,
+          });
         }
-      } else {
-        pdfDoc = await PDFDocument.create();
-        page = await drawWorksheetPage(pdfDoc, unit, questions, student.display_name, mode === 'blank');
+        versions.push({ versionNumber: v, pdfBase64: Buffer.from(outBytes).toString('base64') });
       }
-
-      const qrImage = await pdfDoc.embedPng(qrPng);
-      const qrSize = 60;
-      const { width, height } = page.getSize();
-      page.drawImage(qrImage, { x: width - qrSize - 20, y: height - qrSize - 20, width: qrSize, height: qrSize });
-
-      const outBytes = await pdfDoc.save();
-
-      // Store each generated worksheet's resolved questions (needed later
-      // for AI marking, since randomized values differ per student) -
-      // skipped for the exemplar since it isn't a real student.
-      if (!isExemplar) {
-        await supabase.from('attempts').insert({
-          student_id: student.id,
-          micro_unit_id: microUnitId,
-          submitted_via: mode === 'blank' ? 'blank_scan' : 'scan',
-          raw_answers: { generated: true, questions },
-          attempt_number: 1,
-        });
-      }
-
-      results.push({ studentId: student.id, pdfBase64: Buffer.from(outBytes).toString('base64') });
+      results.push({ studentId: student.id, versions });
     }
 
     return Response.json({
       mode,
       microUnitId,
       worksheets: results,
+      versionsPerStudent: VERSIONS_PER_STUDENT,
       isExemplar,
-      exemplarNote: isExemplar ? 'Your roster is empty, so this is 1 example worksheet showing the format - add students to generate real ones.' : null,
+      exemplarNote: isExemplar ? `Your roster is empty, so this is ${VERSIONS_PER_STUDENT} example versions showing the format - add students to generate real ones.` : null,
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
-
-
-
