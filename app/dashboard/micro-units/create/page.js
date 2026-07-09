@@ -59,7 +59,7 @@ export default function CreateMicroUnitPage() {
       const res = await fetch('/api/suggest-units', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: aiTopic, grade: aiGrade }),
+        body: JSON.stringify({ topic: aiTopic, grade: aiGrade, resourceUrl: resourceUrl || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Research failed');
@@ -131,21 +131,22 @@ export default function CreateMicroUnitPage() {
       <h1>Create Unit</h1>
 
       <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>📎 Attach a Resource (optional)</h2>
-        <p style={{ fontSize: 13, color: '#666', marginTop: -6 }}>
-          Upload an existing worksheet (PDF or image) — student QR codes will be overlaid onto it when generating printed copies, instead of building a page from scratch.
-        </p>
-        <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleUploadResource} disabled={uploading} />
-        {uploading && <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>Uploading…</div>}
-        {resourceUrl && <div style={{ fontSize: 13, color: '#1a7a3e', marginTop: 6 }}>✓ Attached: {resourceFile?.name}</div>}
-        {uploadError && <div style={{ fontSize: 13, color: '#c00', marginTop: 6 }}>{uploadError}</div>}
-      </div>
-
-      <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 20, marginBottom: 24 }}>
         <h2 style={{ marginTop: 0, fontSize: 16 }}>🔍 AI Unit Breakdown</h2>
         <p style={{ fontSize: 13, color: '#666', marginTop: -6 }}>
           Give a topic and grade — AI researches CommonCoreSheets.com's actual skill sequencing and suggests a logical progression of Units, from foundational to advanced.
         </p>
+
+        <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+          <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 4 }}>📎 Upload an example worksheet or lesson (optional)</label>
+          <p style={{ fontSize: 12, color: '#666', marginTop: 0, marginBottom: 8 }}>
+            The AI will actually read this file as reference material when researching — matching your existing worksheet style, level, or lesson content. It's also used to overlay student QR codes when generating printed copies.
+          </p>
+          <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleUploadResource} disabled={uploading} />
+          {uploading && <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>Uploading…</div>}
+          {resourceUrl && <div style={{ fontSize: 13, color: '#1a7a3e', marginTop: 6 }}>✓ Attached: {resourceFile?.name}</div>}
+          {uploadError && <div style={{ fontSize: 13, color: '#c00', marginTop: 6 }}>{uploadError}</div>}
+        </div>
+
         <form onSubmit={handleResearch} style={{ display: 'flex', gap: 8 }}>
           <input value={aiTopic} onChange={(e) => setAiTopic(e.target.value)} placeholder="e.g. Using Substitutions to Solve Problems" required style={{ ...inputStyle, marginTop: 0, flex: 2 }} />
           <input value={aiGrade} onChange={(e) => setAiGrade(e.target.value)} placeholder="Grade" style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
@@ -239,3 +240,4 @@ function resolveExample(prompt, ranges) {
 }
 
 const inputStyle = { width: '100%', padding: 8, marginTop: 4, boxSizing: 'border-box' };
+
