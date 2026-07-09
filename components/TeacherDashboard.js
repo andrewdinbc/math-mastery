@@ -96,9 +96,16 @@ export default function TeacherDashboard({ userId }) {
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h2>Students ({students.length})</h2>
-              <Link href="/dashboard/students/create" className={styles.createBtn}>
-                + Add
-              </Link>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {students.length > 0 && (
+                  <a href="/api/export-roster" style={{ fontSize: 13, color: '#1c3557' }}>
+                    ⬇ Download Roster (QR codes)
+                  </a>
+                )}
+                <Link href="/dashboard/students/create" className={styles.createBtn}>
+                  + Add
+                </Link>
+              </div>
             </div>
 
             {students.length === 0 ? (
