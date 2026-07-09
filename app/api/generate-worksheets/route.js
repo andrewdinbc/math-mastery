@@ -92,14 +92,29 @@ export async function POST(request) {
         displayName: s.display_name,
         url: `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${s.id}`,
       }));
-      return Response.json({ mode: 'online', microUnitId, links });
+      return Response.json({
+        mode: 'online',
+        microUnitId,
+        links,
+        exemplarNote: links.length === 0 ? 'Your roster is empty - add students to generate real practice links.' : null,
+      });
     }
 
     // 'printed' or 'blank': generate one PDF per student, zip-less — return
     // the first student's PDF directly and a manifest for the rest (a real
     // bulk-download flow would zip these; kept simple for the first pass).
+    //
+    // Empty roster: generate exactly 1 exemplar (using a placeholder
+    // "Example Student" name/QR) so the teacher can see the actual worksheet
+    // format before adding a real roster, rather than silently generating
+    // nothing with no explanation.
+    const isExemplar = (students || []).length === 0;
+    const studentList = isExemplar
+      ? [{ id: 'exemplar', display_name: 'Example Student', qr_code: 'EXEMPLAR-QR' }]
+      : students;
+
     const results = [];
-    for (const student of students || []) {
+    for (const student of studentList) {
       const questions = unit.randomizable ? randomizeTemplate(unit.question_template) : unit.question_template.questions;
       const submitUrl = `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${student.id}&mode=scan`;
       const qrPng = await fetchQrPng(submitUrl);
@@ -139,21 +154,31 @@ export async function POST(request) {
       const outBytes = await pdfDoc.save();
 
       // Store each generated worksheet's resolved questions (needed later
-      // for AI marking, since randomized values differ per student).
-      await supabase.from('attempts').insert({
-        student_id: student.id,
-        micro_unit_id: microUnitId,
-        submitted_via: mode === 'blank' ? 'blank_scan' : 'scan',
-        raw_answers: { generated: true, questions }, // placeholder row, updated on actual submission
-        attempt_number: 1,
-      });
+      // for AI marking, since randomized values differ per student) -
+      // skipped for the exemplar since it isn't a real student.
+      if (!isExemplar) {
+        await supabase.from('attempts').insert({
+          student_id: student.id,
+          micro_unit_id: microUnitId,
+          submitted_via: mode === 'blank' ? 'blank_scan' : 'scan',
+          raw_answers: { generated: true, questions },
+          attempt_number: 1,
+        });
+      }
 
       results.push({ studentId: student.id, pdfBase64: Buffer.from(outBytes).toString('base64') });
     }
 
-    return Response.json({ mode, microUnitId, worksheets: results });
+    return Response.json({
+      mode,
+      microUnitId,
+      worksheets: results,
+      isExemplar,
+      exemplarNote: isExemplar ? 'Your roster is empty, so this is 1 example worksheet showing the format - add students to generate real ones.' : null,
+    });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
 
