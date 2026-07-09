@@ -12,13 +12,16 @@ export default function MicroUnitDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState(null);
   const [mode, setMode] = useState('online');
+  const [students, setStudents] = useState([]);
 
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.from('micro_units').select('*').eq('id', id).single();
       const { data: a } = await supabase.from('attempts').select('*, students(display_name)').eq('micro_unit_id', id).order('created_at', { ascending: false });
+      const { data: s } = u ? await supabase.from('students').select('*').eq('teacher_id', u.teacher_id) : { data: [] };
       setUnit(u);
       setAttempts(a || []);
+      setStudents(s || []);
       setLoading(false);
     })();
   }, [id]);
@@ -66,7 +69,24 @@ export default function MicroUnitDetailPage() {
           {genResult.links.map((l) => <li key={l.studentId}><a href={l.url} target="_blank" rel="noreferrer">{l.displayName || l.studentId}</a></li>)}
         </ul>
       )}
-      {genResult?.worksheets && <div style={{ color: '#1a7a3e' }}>✓ Generated {genResult.worksheets.length} worksheet PDF(s).</div>}
+      {genResult?.worksheets && (
+        <div>
+          <div style={{ color: '#1a7a3e', marginBottom: 8 }}>✓ Generated {genResult.worksheets.length} worksheet PDF(s):</div>
+          <ul>
+            {genResult.worksheets.map((w) => {
+              const studentName = students.find((s) => s.id === w.studentId)?.display_name || w.studentId;
+              const dataUrl = `data:application/pdf;base64,${w.pdfBase64}`;
+              return (
+                <li key={w.studentId} style={{ marginBottom: 4 }}>
+                  <a href={dataUrl} download={`${unit.title}-${studentName}.pdf`}>
+                    📄 {studentName} — Download PDF
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <h2>Attempts</h2>
       {attempts.length === 0 ? (
