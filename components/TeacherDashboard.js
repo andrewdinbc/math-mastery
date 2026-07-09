@@ -113,7 +113,7 @@ export default function TeacherDashboard({ userId }) {
                 {students.map((student) => (
                   <div key={student.id} className={styles.item}>
                     <div className={styles.itemContent}>
-                      <h3>{student.display_name?.startsWith('enc:') ? '🔒 Encrypted' : student.display_name}</h3>
+                      <h3>Student ({student.qr_code})</h3>
                       {student.qr_code && (
                         <p className={styles.itemMeta}>QR: {student.qr_code}</p>
                       )}
