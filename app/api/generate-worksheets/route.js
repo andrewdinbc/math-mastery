@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import Anthropic from '@anthropic-ai/sdk';
 
 // Generates worksheets for a micro-unit, laid out to match the
 // CommonCoreSheets reference template Aj provided: title + Name field top
@@ -21,6 +22,47 @@ import { cookies } from 'next/headers';
 const QR_API = 'https://api.qrserver.com/v1/create-qr-code/';
 const VERSIONS_PER_STUDENT = 10;
 const MIN_QUESTIONS_PER_PAGE = 10;
+
+const anthropic = new Anthropic();
+
+const STATIC_LABELS = {
+  english: { name: 'Name:', answers: 'Answers', version: (v, total) => `Version ${v} of ${total}`, defaultInstructions: 'Complete each question below.' },
+  french: { name: 'Nom :', answers: 'Réponses', version: (v, total) => `Version ${v} sur ${total}`, defaultInstructions: 'Complétez chaque question ci-dessous.' },
+  spanish: { name: 'Nombre:', answers: 'Respuestas', version: (v, total) => `Versión ${v} de ${total}`, defaultInstructions: 'Completa cada pregunta a continuación.' },
+};
+
+// Translates the question TEMPLATE (with {variable} placeholders intact,
+// numbers not yet substituted) once per generation request - not per
+// version - so 10 AI calls per student aren't needed. The translated
+// template then gets randomized per-version exactly like the English one.
+async function translateTemplate(questionTemplate, language) {
+  if (language === 'english' || !language) return questionTemplate;
+  const prompt = `Translate the following math question templates into ${language}. Keep every {variable} placeholder EXACTLY as-is (do not translate variable names inside braces) - only translate the surrounding language. Keep answer_formula fields unchanged (they're math expressions, not language). Also translate this instructions line if present: "${questionTemplate.instructions || ''}".
+
+Questions (JSON): ${JSON.stringify(questionTemplate.questions)}
+
+Respond with ONLY valid JSON, no markdown fences, in this exact shape:
+{ "instructions": "translated instructions or empty string", "questions": [{ "prompt": "translated prompt with {variable} placeholders preserved", "answer_formula": "unchanged" }] }`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const text = message.content.find((b) => b.type === 'text')?.text || '';
+  const cleaned = text.replace(/```json|```/g, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    return {
+      ...questionTemplate,
+      instructions: parsed.instructions || questionTemplate.instructions,
+      questions: parsed.questions || questionTemplate.questions,
+    };
+  } catch {
+    // Translation failed to parse - fall back to English rather than break generation.
+    return questionTemplate;
+  }
+}
 
 const PAGE_W = 612;
 const PAGE_H = 792;
@@ -81,16 +123,16 @@ function wrapText(text, font, size, maxWidth) {
   return lines;
 }
 
-async function drawHeader(page, font, boldFont, unit, studentName, versionNumber) {
+async function drawHeader(page, font, boldFont, unit, studentName, versionNumber, labels) {
   const { width, height } = page.getSize();
   page.drawText(unit.title || 'Math Practice', { x: MARGIN, y: height - 40, size: 16, font: boldFont });
-  page.drawText(`Version ${versionNumber} of ${VERSIONS_PER_STUDENT}`, { x: width - 150, y: height - 25, size: 8, color: rgb(0.5, 0.5, 0.5), font });
+  page.drawText(labels.version(versionNumber, VERSIONS_PER_STUDENT), { x: width - 150, y: height - 25, size: 8, color: rgb(0.5, 0.5, 0.5), font });
 
   // Name field - top right, QR gets overlaid to the right of/over this by the caller.
-  const nameLabel = studentName ? `Name: ${studentName}` : 'Name: _______________________';
+  const nameLabel = studentName ? `${labels.name} ${studentName}` : `${labels.name} _______________________`;
   page.drawText(nameLabel, { x: width - 260, y: height - 45, size: 11, font });
 
-  const instructions = unit.question_template?.instructions || 'Complete each question below.';
+  const instructions = unit.question_template?.instructions || labels.defaultInstructions;
   page.drawText(instructions, { x: MARGIN, y: height - 65, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
 
   // Divider before the Answers column
@@ -100,7 +142,7 @@ async function drawHeader(page, font, boldFont, unit, studentName, versionNumber
     thickness: 1,
     color: rgb(0.7, 0.7, 0.7),
   });
-  page.drawText('Answers', { x: width - MARGIN - ANSWER_COL_W + 5, y: height - HEADER_H + 20, size: 11, font: boldFont });
+  page.drawText(labels.answers, { x: width - MARGIN - ANSWER_COL_W + 5, y: height - HEADER_H + 20, size: 11, font: boldFont });
 }
 
 function drawAnswersColumn(page, font, startIndex, count) {
@@ -117,12 +159,12 @@ function drawAnswersColumn(page, font, startIndex, count) {
   }
 }
 
-async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentName, versionNumber) {
+async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentName, versionNumber, labels) {
   const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  await drawHeader(page, font, boldFont, unit, studentName, versionNumber);
+  await drawHeader(page, font, boldFont, unit, studentName, versionNumber, labels);
   drawAnswersColumn(page, font, startIndex, questions.length);
 
   // 2-column grid for the questions themselves - narrower than a 3-column
@@ -158,7 +200,7 @@ async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentNam
   return page;
 }
 
-async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage) {
+async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage, labels) {
   const pdfDoc = await PDFDocument.create();
 
   if (unit.resource_url) {
@@ -191,7 +233,7 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
   // Standard generated layout, paginated at questionsPerPage per page.
   for (let start = 0; start < allQuestions.length; start += questionsPerPage) {
     const chunk = allQuestions.slice(start, start + questionsPerPage);
-    const page = await drawQuestionsPage(pdfDoc, unit, chunk, start, studentName, versionNumber);
+    const page = await drawQuestionsPage(pdfDoc, unit, chunk, start, studentName, versionNumber, labels);
     const qrImage = await pdfDoc.embedPng(qrPng);
     const qrSize = 55;
     page.drawImage(qrImage, { x: PAGE_W - qrSize - 15, y: PAGE_H - qrSize - 5, width: qrSize, height: qrSize });
@@ -203,7 +245,7 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
 export async function POST(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames } = await request.json();
+    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language } = await request.json();
     if (!microUnitId || !mode) {
       return Response.json({ error: 'microUnitId and mode required' }, { status: 400 });
     }
@@ -211,6 +253,8 @@ export async function POST(request) {
       return Response.json({ error: "mode must be 'printed', 'blank', or 'online'" }, { status: 400 });
     }
     const questionsPerPage = Math.max(MIN_QUESTIONS_PER_PAGE, Number(qppInput) || MIN_QUESTIONS_PER_PAGE);
+    const lang = ['english', 'french', 'spanish'].includes(language) ? language : 'english';
+    const labels = STATIC_LABELS[lang];
 
     const { data: unit, error: unitErr } = await supabase
       .from('micro_units')
@@ -218,6 +262,11 @@ export async function POST(request) {
       .eq('id', microUnitId)
       .single();
     if (unitErr || !unit) return Response.json({ error: 'micro_unit not found' }, { status: 404 });
+
+    // Translate once per generation request, not per version - keeps this
+    // fast regardless of how many students/versions are being generated.
+    const translatedTemplate = mode !== 'online' ? await translateTemplate(unit.question_template, lang) : unit.question_template;
+    const effectiveUnit = { ...unit, question_template: translatedTemplate };
 
     const { data: students, error: studErr } = await supabase
       .from('students')
@@ -254,8 +303,8 @@ export async function POST(request) {
       const suppliedName = mode === 'printed' ? studentNames?.[student.id] : null;
 
       for (let v = 1; v <= VERSIONS_PER_STUDENT; v++) {
-        const questions = buildQuestions(unit.question_template, { randomize: unit.randomizable, shuffleOrder: !!shuffleOrder });
-        const outBytes = await generatePdfForStudent(unit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage);
+        const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder });
+        const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels);
 
         if (!isExemplar) {
           await supabase.from('attempts').insert({
