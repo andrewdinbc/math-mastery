@@ -49,7 +49,11 @@ async function drawWorksheetPage(pdfDoc, unit, questions, studentName, isBlank) 
   if (isBlank) {
     page.drawText('Name: _______________________', { x: 40, y: height - 80, size: 12 });
   } else {
-    page.drawText(`Name: ${studentName || ''}`, { x: 40, y: height - 80, size: 12 });
+    // Names may be end-to-end encrypted (stored as 'enc:...') - the server
+  // never has the key, so it can never print the real name. Always fall
+  // back to a blank line in that case rather than printing raw ciphertext.
+  const safeName = studentName && !studentName.startsWith('enc:') ? studentName : '';
+  page.drawText(`Name: ${safeName}`, { x: 40, y: height - 80, size: 12 });
   }
 
   let y = height - 130;
@@ -89,7 +93,7 @@ export async function POST(request) {
     if (mode === 'online') {
       const links = (students || []).map((s) => ({
         studentId: s.id,
-        displayName: s.display_name,
+        displayName: s.display_name && !s.display_name.startsWith('enc:') ? s.display_name : null, // encrypted names can't be shown server-side
         url: `https://math-mastery-three.vercel.app/practice/${microUnitId}?student=${s.id}`,
       }));
       return Response.json({
@@ -180,5 +184,6 @@ export async function POST(request) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
 
 
