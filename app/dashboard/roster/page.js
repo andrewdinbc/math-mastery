@@ -18,6 +18,7 @@ export default function RosterManagerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [performance, setPerformance] = useState({}); // student id -> [{unitTitle, strand, scorePct, passed}]
 
   async function handleGenerateNewKey() {
     const key = await generateKey();
@@ -55,6 +56,22 @@ export default function RosterManagerPage() {
         dec[s.id] = await decryptName(cryptoKey, s.display_name);
       }
       setDecrypted(dec);
+
+      // Real performance data, joined here (client-side, after decryption)
+      // so names and scores can actually be shown together - this is the
+      // combined view: decrypted name + real attempt results.
+      const { data: attempts } = await supabase
+        .from('attempts')
+        .select('student_id, score_pct, passed_threshold, micro_units(title, strand)')
+        .in('student_id', (data || []).map((s) => s.id))
+        .order('created_at', { ascending: false });
+      const perf = {};
+      for (const a of attempts || []) {
+        if (a.score_pct == null) continue; // skip placeholder rows generated at worksheet-creation time
+        perf[a.student_id] = perf[a.student_id] || [];
+        perf[a.student_id].push({ unitTitle: a.micro_units?.title, strand: a.micro_units?.strand, scorePct: a.score_pct, passed: a.passed_threshold });
+      }
+      setPerformance(perf);
     } catch (err) {
       setError(err.message || 'Failed to load roster');
     }
@@ -143,6 +160,7 @@ export default function RosterManagerPage() {
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
                   <th style={{ padding: 8 }}>First Name</th>
                   <th style={{ padding: 8 }}>QR Code</th>
+                  <th style={{ padding: 8 }}>Recent Performance</th>
                   <th style={{ padding: 8 }}></th>
                 </tr>
               </thead>
@@ -157,6 +175,17 @@ export default function RosterManagerPage() {
                       />
                     </td>
                     <td style={{ padding: 8, fontFamily: 'monospace', fontSize: 12 }}>{s.qr_code}</td>
+                    <td style={{ padding: 8, fontSize: 12 }}>
+                      {(performance[s.id] || []).length === 0 ? (
+                        <span style={{ color: '#888', fontStyle: 'italic' }}>No attempts yet</span>
+                      ) : (
+                        performance[s.id].slice(0, 3).map((p, i) => (
+                          <div key={i}>
+                            {decrypted[s.id] || 'This student'} scored {p.scorePct}% on {p.strand || p.unitTitle} {p.passed ? '✓' : ''}
+                          </div>
+                        ))
+                      )}
+                    </td>
                     <td style={{ padding: 8 }}>
                       {edits[s.id] !== undefined && edits[s.id] !== decrypted[s.id] && (
                         <button onClick={() => handleSaveEdit(s.id)} disabled={savingId === s.id} style={{ padding: '4px 10px', background: '#1a7a3e', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12 }}>
@@ -174,3 +203,4 @@ export default function RosterManagerPage() {
     </main>
   );
 }
+
