@@ -15,6 +15,7 @@ export default function MicroUnitDetailPage() {
   const [shuffleOrder, setShuffleOrder] = useState(false);
   const [students, setStudents] = useState([]);
   const [showAllVersions, setShowAllVersions] = useState({}); // studentId -> bool
+  const [hoveredVersion, setHoveredVersion] = useState(null); // {studentId, versionNumber} | null
 
   useEffect(() => {
     (async () => {
@@ -127,9 +128,19 @@ export default function MicroUnitDetailPage() {
       {genResult?.exemplarNote && <div style={{ color: '#b57c2a', background: '#fff8ee', border: '1px solid #ddd4c2', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13 }}>ℹ️ {genResult.exemplarNote}</div>}
 
       {genResult?.links && (
-        <ul>
-          {genResult.links.map((l) => <li key={l.studentId}><a href={l.url} target="_blank" rel="noreferrer">{l.studentId === 'exemplar' ? 'Example' : l.studentId}</a></li>)}
-        </ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {genResult.links.map((l) => (
+            <div key={l.studentId} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #ddd4c2', borderRadius: 8, padding: 12 }}>
+              {l.qrPngBase64 && (
+                <img src={`data:image/png;base64,${l.qrPngBase64}`} alt="QR code" style={{ width: 70, height: 70 }} />
+              )}
+              <div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Scan with a personal device, or:</div>
+                <a href={l.url} target="_blank" rel="noreferrer">{l.studentId === 'exemplar' ? 'Example link' : 'Open practice link'}</a>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {genResult?.worksheets && (
@@ -148,11 +159,25 @@ export default function MicroUnitDetailPage() {
                 <ul style={{ marginTop: 6 }}>
                   {versionsToShow.map((v) => {
                     const dataUrl = `data:application/pdf;base64,${v.pdfBase64}`;
+                    const isHovered = hoveredVersion?.studentId === w.studentId && hoveredVersion?.versionNumber === v.versionNumber;
                     return (
-                      <li key={v.versionNumber} style={{ marginBottom: 2 }}>
+                      <li key={v.versionNumber} style={{ marginBottom: 2, position: 'relative' }}
+                        onMouseEnter={() => setHoveredVersion({ studentId: w.studentId, versionNumber: v.versionNumber })}
+                        onMouseLeave={() => setHoveredVersion(null)}
+                      >
                         <a href={dataUrl} download={`${unit.title}-${label}-v${v.versionNumber}.pdf`}>
                           📄 Version {v.versionNumber} — Download PDF
                         </a>
+                        {isHovered && v.questions && (
+                          <div style={{
+                            position: 'absolute', left: '100%', top: 0, marginLeft: 10, zIndex: 10,
+                            background: '#fff', border: '1px solid #ddd4c2', borderRadius: 8, padding: 12,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)', width: 280, fontSize: 12,
+                          }}>
+                            <div style={{ fontWeight: 700, marginBottom: 6 }}>Actual questions in this version:</div>
+                            {v.questions.map((q, i) => <div key={i} style={{ marginBottom: 3 }}>{i + 1}) {q.prompt}</div>)}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -193,3 +218,4 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
