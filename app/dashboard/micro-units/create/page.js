@@ -49,7 +49,7 @@ export default function CreateMicroUnitPage() {
 
   return (
     <main style={{ padding: 32, maxWidth: 640, margin: '0 auto' }}>
-      <h1>Create Micro-Unit</h1>
+      <h1>Create Unit</h1>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} required style={inputStyle} /></label>
         <div style={{ display: 'flex', gap: 12 }}>
@@ -64,7 +64,7 @@ export default function CreateMicroUnitPage() {
         <label>Questions (JSON array)<textarea value={questionsText} onChange={(e) => setQuestionsText(e.target.value)} rows={6} style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }} /></label>
         {randomizable && <label>Variable Ranges (JSON)<textarea value={rangesText} onChange={(e) => setRangesText(e.target.value)} rows={4} style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }} /></label>}
         <button type="submit" disabled={saving} style={{ padding: 10, background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>
-          {saving ? 'Saving…' : 'Create Micro-Unit'}
+          {saving ? 'Saving…' : 'Create Unit'}
         </button>
         {error && <div style={{ color: '#c00' }}>{error}</div>}
       </form>
