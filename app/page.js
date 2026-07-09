@@ -1,9 +1,51 @@
-"use client";
-export default function HomePage() {
+import Link from 'next/link';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import styles from './page.module.css';
+
+export default async function Home() {
+  const supabase = createServerComponentClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session) {
+    redirect('/dashboard');
+  }
+
   return (
-    <div style={{fontFamily:"'Segoe UI',sans-serif",padding:40,maxWidth:700,margin:"0 auto"}}>
-      <h1 style={{color:"#1c3557"}}>🚀 math-mastery</h1>
-      <p style={{color:"#8a7d6e"}}>Adaptive K–8 math practice platform with spaced repetition, progress reporting, and teacher dashboards.</p>
-    </div>
+    <main className={styles.main}>
+      <div className={styles.container}>
+        <h1>Mastery Studio</h1>
+        <p className={styles.subtitle}>
+          Self-paced, mastery-gated math practice
+        </p>
+
+        <div className={styles.features}>
+          <div className={styles.feature}>
+            <h3>For Students</h3>
+            <p>Practice at your own pace until you master each concept</p>
+          </div>
+          <div className={styles.feature}>
+            <h3>For Teachers</h3>
+            <p>Track student progress and customize mastery thresholds</p>
+          </div>
+          <div className={styles.feature}>
+            <h3>AI-Powered</h3>
+            <p>Instant feedback and targeted mini-lessons on mistakes</p>
+          </div>
+        </div>
+
+        <div className={styles.cta}>
+          <Link href="/auth/login" className={styles.primaryBtn}>
+            Login
+          </Link>
+          <Link href="/auth/signup" className={styles.secondaryBtn}>
+            Sign Up
+          </Link>
+        </div>
+      </div>
+    </main>
   );
 }

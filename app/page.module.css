@@ -1,0 +1,86 @@
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  min-height: calc(100vh - 80px);
+}
+
+.container {
+  max-width: 600px;
+  text-align: center;
+}
+
+.container h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #0070f3;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.feature {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.feature h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: #0070f3;
+}
+
+.feature p {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: inline-block;
+}
+
+.primaryBtn {
+  background-color: #0070f3;
+  color: white;
+}
+
+.primaryBtn:hover {
+  background-color: #0051cc;
+}
+
+.secondaryBtn {
+  background-color: white;
+  color: #0070f3;
+  border: 2px solid #0070f3;
+}
+
+.secondaryBtn:hover {
+  background-color: #f0f7ff;
+}

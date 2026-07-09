@@ -1,0 +1,133 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error {
+  background-color: #fee;
+  color: #c00;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+  border: 1px solid #fcc;
+}
+
+.resultCard,
+.remediationCard {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.resultCard h1,
+.remediationCard h1 {
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.scoreCircle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  margin: 0 auto 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.scoreCircle.passed {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+  color: white;
+}
+
+.scoreCircle.failed {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+}
+
+.score {
+  font-size: 2.5rem;
+  font-weight: 800;
+}
+
+.status {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+.threshold {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.message {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.retryBtn,
+.backBtn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retryBtn {
+  background-color: #0070f3;
+  color: white;
+  border: none;
+}
+
+.retryBtn:hover {
+  background-color: #0051cc;
+}
+
+.backBtn {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.backBtn:hover {
+  background-color: #e0e0e0;
+}
+
+.remediationContent {
+  text-align: left;
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.remediationContent h2,
+.remediationContent h3 {
+  color: #0070f3;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.remediationContent p {
+  margin-bottom: 0.75rem;
+}

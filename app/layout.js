@@ -1,4 +1,25 @@
-export const metadata = { title:"math-mastery", description:"Adaptive K–8 math practice platform with spaced repetition, progress reporting, and teacher dashboards." };
-export default function RootLayout({ children }) {
-  return (<html lang="en"><body>{children}</body></html>);
+import './globals.css';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import NavBar from '@/components/NavBar';
+
+export const metadata = {
+  title: 'Mastery Studio',
+  description: 'Self-paced mastery-gated math practice',
+};
+
+export default async function RootLayout({ children }) {
+  const supabase = createServerComponentClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return (
+    <html lang="en">
+      <body>
+        <NavBar session={session} />
+        {children}
+      </body>
+    </html>
+  );
 }
