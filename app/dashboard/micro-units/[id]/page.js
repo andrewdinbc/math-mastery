@@ -42,7 +42,7 @@ export default function MicroUnitDetailPage() {
   }
 
   if (loading) return <main style={{ padding: 32 }}>Loading…</main>;
-  if (!unit) return <main style={{ padding: 32 }}>Micro-unit not found.</main>;
+  if (!unit) return <main style={{ padding: 32 }}>Unit not found.</main>;
 
   return (
     <main style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
