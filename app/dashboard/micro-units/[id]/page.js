@@ -75,7 +75,10 @@ export default function MicroUnitDetailPage() {
           <div style={{ color: '#1a7a3e', marginBottom: 8 }}>✓ Generated {genResult.worksheets.length} worksheet PDF(s):</div>
           <ul>
             {genResult.worksheets.map((w) => {
-              const studentName = w.studentId === 'exemplar' ? 'Example Student (exemplar)' : (students.find((s) => s.id === w.studentId)?.display_name || w.studentId);
+              const matched = students.find((s) => s.id === w.studentId);
+              const studentName = w.studentId === 'exemplar'
+                ? 'Example Student (exemplar)'
+                : matched?.qr_code || w.studentId; // name is encrypted server-side - use QR code as the identifier here instead
               const dataUrl = `data:application/pdf;base64,${w.pdfBase64}`;
               return (
                 <li key={w.studentId} style={{ marginBottom: 4 }}>
@@ -100,7 +103,7 @@ export default function MicroUnitDetailPage() {
           <tbody>
             {attempts.map((a) => (
               <tr key={a.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: 8 }}>{a.students?.display_name || '—'}</td>
+                <td style={{ padding: 8 }}>{a.students?.display_name?.startsWith('enc:') ? '🔒 Encrypted' : (a.students?.display_name || '—')}</td>
                 <td style={{ padding: 8 }}>{a.score_pct != null ? `${a.score_pct}%` : '—'}</td>
                 <td style={{ padding: 8 }}>{a.passed_threshold === null ? '—' : a.passed_threshold ? '✓' : '✗'}</td>
               </tr>
@@ -111,4 +114,5 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
