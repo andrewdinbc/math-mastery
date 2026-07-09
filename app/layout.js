@@ -4,6 +4,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import NavBar from '@/components/NavBar';
 import DevModePanel from '@/developer-mode/DevModePanel';
+import UpsellSidebar from '@/components/UpsellSidebar';
 
 // force-dynamic: this layout calls supabase.auth.getSession() on every
 // render, which requires real env vars at request time - without this,
@@ -27,7 +28,10 @@ export default async function RootLayout({ children }) {
     <html lang="en">
       <body>
         <NavBar session={session} />
-        {children}
+        <UpsellSidebar />
+        <div style={{ marginLeft: 130 }}>
+          {children}
+        </div>
         <DevModePanel
           productName="Mastery Studio"
           sourceRepo="andrewdinbc/math-mastery"
