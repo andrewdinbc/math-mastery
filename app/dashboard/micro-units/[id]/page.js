@@ -12,6 +12,7 @@ export default function MicroUnitDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState(null);
   const [mode, setMode] = useState('online');
+  const [language, setLanguage] = useState('english');
   const [shuffleOrder, setShuffleOrder] = useState(false);
   const [students, setStudents] = useState([]);
   const [showAllVersions, setShowAllVersions] = useState({}); // studentId -> bool
@@ -39,7 +40,7 @@ export default function MicroUnitDetailPage() {
       const res = await fetch('/api/generate-worksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames }),
+        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames, language }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -100,6 +101,11 @@ export default function MicroUnitDetailPage() {
             <option value="online">Online, link only</option>
             <option value="printed">Printed (Name prefilled and QR)</option>
             <option value="blank">Blank (QR prefilled, student writes name)</option>
+          </select>
+          <select value={language} onChange={(e) => setLanguage(e.target.value)} style={{ padding: 8 }}>
+            <option value="english">English</option>
+            <option value="french">Français</option>
+            <option value="spanish">Español</option>
           </select>
           <button onClick={handleGenerate} disabled={generating} style={{ padding: '8px 16px', background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6 }}>
             {generating ? 'Generating…' : 'Generate'}
@@ -263,5 +269,6 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
 
