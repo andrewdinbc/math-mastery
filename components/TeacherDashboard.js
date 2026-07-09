@@ -35,7 +35,7 @@ export default function TeacherDashboard({ userId }) {
         .from('students')
         .select('*')
         .eq('teacher_id', userId)
-        .order('display_name', { ascending: true });
+        .order('created_at', { ascending: true }); // display_name is encrypted - sorting by it is meaningless
 
       if (stdError) throw stdError;
 
@@ -97,11 +97,9 @@ export default function TeacherDashboard({ userId }) {
             <div className={styles.sectionHeader}>
               <h2>Students ({students.length})</h2>
               <div style={{ display: 'flex', gap: 10 }}>
-                {students.length > 0 && (
-                  <a href="/api/export-roster" style={{ fontSize: 13, color: '#1c3557' }}>
-                    ⬇ Download Roster (QR codes)
-                  </a>
-                )}
+                <Link href="/dashboard/roster" style={{ fontSize: 13, color: '#1c3557' }}>
+                  🔒 Roster Manager
+                </Link>
                 <Link href="/dashboard/students/create" className={styles.createBtn}>
                   + Add
                 </Link>
@@ -115,7 +113,7 @@ export default function TeacherDashboard({ userId }) {
                 {students.map((student) => (
                   <div key={student.id} className={styles.item}>
                     <div className={styles.itemContent}>
-                      <h3>{student.display_name}</h3>
+                      <h3>{student.display_name?.startsWith('enc:') ? '🔒 Encrypted' : student.display_name}</h3>
                       {student.qr_code && (
                         <p className={styles.itemMeta}>QR: {student.qr_code}</p>
                       )}
@@ -133,3 +131,4 @@ export default function TeacherDashboard({ userId }) {
     </main>
   );
 }
+
