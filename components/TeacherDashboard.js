@@ -62,14 +62,14 @@ export default function TeacherDashboard({ userId }) {
         <div className={styles.grid}>
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
-              <h2>Micro-Units ({microUnits.length})</h2>
+              <h2>Units ({microUnits.length})</h2>
               <Link href="/dashboard/micro-units/create" className={styles.createBtn}>
                 + Create
               </Link>
             </div>
 
             {microUnits.length === 0 ? (
-              <p className={styles.empty}>No micro-units yet</p>
+              <p className={styles.empty}>No units yet</p>
             ) : (
               <div className={styles.list}>
                 {microUnits.map((mu) => (
