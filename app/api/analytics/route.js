@@ -54,7 +54,7 @@ export async function GET(request) {
 
     const { data: attempts, error: attErr } = await supabase
       .from('attempts')
-      .select('*, micro_units!inner(strand, teacher_id, title), students!inner(display_name)')
+      .select('*, micro_units!inner(strand, teacher_id, title), students!inner(qr_code)')
       .eq('micro_units.teacher_id', teacherId);
     if (attErr) return Response.json({ error: attErr.message }, { status: 500, headers: CORS_HEADERS });
 
@@ -109,7 +109,7 @@ export async function GET(request) {
           ...new Set(
             strandScores[s.strand]
               .filter((r) => !r.passed_threshold)
-              .map((r) => r.students?.display_name)
+              .map((r) => r.students?.qr_code)
               .filter(Boolean)
           ),
         ],
