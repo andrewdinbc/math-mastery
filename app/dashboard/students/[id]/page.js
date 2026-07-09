@@ -28,12 +28,10 @@ export default function StudentDetailPage() {
 
   return (
     <main style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
-      <h1>{student.display_name?.startsWith('enc:') ? '🔒 Encrypted Student' : student.display_name}</h1>
-      {student.display_name?.startsWith('enc:') && (
-        <p style={{ fontSize: 13 }}>
-          <a href="/dashboard/roster" style={{ color: '#1c3557' }}>View real name in Roster Manager →</a>
-        </p>
-      )}
+      <h1>Student ({student.qr_code})</h1>
+      <p style={{ fontSize: 13 }}>
+        Name is never stored here — <a href="/dashboard/roster" style={{ color: '#1c3557' }}>load your local roster file in Roster Manager</a> to see it alongside real results.
+      </p>
       <p style={{ color: '#666' }}>QR code: {student.qr_code}</p>
 
       <h2>Custom Mastery Thresholds</h2>
