@@ -1,3 +1,4 @@
+// MICRO_UNIT_SYNC_SECRET set 1783629770 (retry)
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
