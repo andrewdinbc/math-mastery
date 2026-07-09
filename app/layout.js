@@ -1,3 +1,4 @@
+// Real Supabase project connected 1783633160
 import './globals.css';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
