@@ -17,7 +17,7 @@ export default function MicroUnitDetailPage() {
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.from('micro_units').select('*').eq('id', id).single();
-      const { data: a } = await supabase.from('attempts').select('*, students(display_name)').eq('micro_unit_id', id).order('created_at', { ascending: false });
+      const { data: a } = await supabase.from('attempts').select('*, students(qr_code)').eq('micro_unit_id', id).order('created_at', { ascending: false });
       const { data: s } = u ? await supabase.from('students').select('*').eq('teacher_id', u.teacher_id) : { data: [] };
       setUnit(u);
       setAttempts(a || []);
@@ -103,7 +103,7 @@ export default function MicroUnitDetailPage() {
           <tbody>
             {attempts.map((a) => (
               <tr key={a.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: 8 }}>{a.students?.display_name?.startsWith('enc:') ? '🔒 Encrypted' : (a.students?.display_name || '—')}</td>
+                <td style={{ padding: 8 }}>{a.students?.qr_code || '—'}</td>
                 <td style={{ padding: 8 }}>{a.score_pct != null ? `${a.score_pct}%` : '—'}</td>
                 <td style={{ padding: 8 }}>{a.passed_threshold === null ? '—' : a.passed_threshold ? '✓' : '✗'}</td>
               </tr>
