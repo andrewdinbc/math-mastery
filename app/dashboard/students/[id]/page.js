@@ -49,7 +49,7 @@ export default function StudentDetailPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-              <th style={{ padding: 8 }}>Micro-Unit</th>
+              <th style={{ padding: 8 }}>Unit</th>
               <th style={{ padding: 8 }}>Score</th>
               <th style={{ padding: 8 }}>Passed</th>
               <th style={{ padding: 8 }}>Date</th>
