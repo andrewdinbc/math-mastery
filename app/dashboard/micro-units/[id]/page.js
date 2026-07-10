@@ -25,6 +25,11 @@ export default function MicroUnitDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [showUpdatePanel, setShowUpdatePanel] = useState(false);
+  const [difficulty, setDifficulty] = useState(5);
+  const [simplifyInstructions, setSimplifyInstructions] = useState(false);
+  const [showWorkedExample, setShowWorkedExample] = useState(false);
+  const [differentiatePerStudent, setDifferentiatePerStudent] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,7 +50,7 @@ export default function MicroUnitDetailPage() {
       const res = await fetch('/api/generate-worksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames, language, includeAnswerKey }),
+        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames, language, includeAnswerKey, difficulty, simplifyInstructions, showWorkedExample, differentiatePerStudent }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -70,13 +75,16 @@ export default function MicroUnitDetailPage() {
   }
 
   async function handlePreview() {
+    if (mode === 'online') return;
     setPreviewing(true);
-    setPreviewUrl(null);
     try {
       const res = await fetch('/api/generate-worksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, language, includeAnswerKey, previewOnly: true }),
+        body: JSON.stringify({
+          microUnitId: id, mode, shuffleOrder, questionsPerPage, language, includeAnswerKey, previewOnly: true,
+          difficulty, simplifyInstructions, showWorkedExample,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Preview failed');
@@ -86,6 +94,16 @@ export default function MicroUnitDetailPage() {
     }
     setPreviewing(false);
   }
+
+  // Live preview - always showing, not behind a button. Refreshes
+  // automatically once the unit loads, and whenever mode/language change
+  // (the settings that would obviously look different); other tweaks
+  // (difficulty, instructions, etc.) apply via the Update Worksheet panel's
+  // explicit button so it isn't re-generating on every slider tick.
+  useEffect(() => {
+    if (unit) handlePreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit, mode, language]);
 
   // Example-values preview - fills placeholders with a representative
   // mid-range value so the teacher can see the actual format, like the
@@ -144,22 +162,72 @@ export default function MicroUnitDetailPage() {
         </>
       )}
 
-      <h2>Example Worksheet</h2>
-      <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 10, padding: 24, marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid #222', paddingBottom: 8, marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{unit.title}</div>
-          <div style={{ fontSize: 13 }}>Name: ___________________</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', fontSize: 14 }}>
-          {questions.map((q, i) => (
-            <div key={i}>
-              <strong>{i + 1})</strong> {resolveExample(q.prompt, ranges)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Worksheet Preview</h2>
+        <button
+          onClick={() => setShowUpdatePanel((v) => !v)}
+          style={{ padding: '8px 16px', background: showUpdatePanel ? '#1c3557' : '#fff', color: showUpdatePanel ? '#fff' : '#1c3557', border: '1px solid #1c3557', borderRadius: 6, fontSize: 13, fontWeight: 700 }}
+        >
+          ⚙ Update Worksheet
+        </button>
+      </div>
+
+      {showUpdatePanel && (
+        <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 20, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+              <span>Amount of questions per page</span>
+              <span style={{ fontWeight: 700 }}>{questionsPerPage}</span>
             </div>
-          ))}
+            <input type="range" min={10} max={40} value={questionsPerPage} onChange={(e) => setQuestionsPerPage(Number(e.target.value))} style={{ width: '100%' }} />
+          </label>
+
+          <label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+              <span>Difficulty</span>
+              <span style={{ fontWeight: 700 }}>{difficulty <= 3 ? 'Easier' : difficulty >= 8 ? 'Harder' : difficulty === 5 ? 'Original' : difficulty < 5 ? 'Slightly Easier' : 'Slightly Harder'} ({difficulty}/10)</span>
+            </div>
+            <input type="range" min={1} max={10} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} style={{ width: '100%' }} />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+            <span>Simplify instructions</span>
+            <span onClick={() => setSimplifyInstructions((v) => !v)} style={toggleTrack(simplifyInstructions)}>
+              <span style={toggleThumb(simplifyInstructions)} />
+            </span>
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+            <span>Example question solved step by step</span>
+            <span onClick={() => setShowWorkedExample((v) => !v)} style={toggleTrack(showWorkedExample)}>
+              <span style={toggleThumb(showWorkedExample)} />
+            </span>
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
+            <span>Differentiate difficulty per student (based on recent scores)</span>
+            <span onClick={() => setDifferentiatePerStudent((v) => !v)} style={toggleTrack(differentiatePerStudent)}>
+              <span style={toggleThumb(differentiatePerStudent)} />
+            </span>
+          </label>
+          {differentiatePerStudent && (
+            <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic', marginTop: -8 }}>
+              Note: this only affects the real Generate step (per-student), not this shared preview.
+            </div>
+          )}
+
+          <button onClick={handlePreview} disabled={previewing} style={{ padding: 10, background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>
+            {previewing ? 'Updating…' : 'Apply & Update Preview'}
+          </button>
         </div>
-        <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic', marginTop: 16, borderTop: '1px solid #eee', paddingTop: 8 }}>
-          Example values shown{unit.randomizable ? ' — each student\'s copy uses different random numbers, same structure.' : '.'}
-        </div>
+      )}
+
+      <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 10, padding: 12, marginBottom: 24, minHeight: 300 }}>
+        {previewing && !previewUrl && <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading preview…</div>}
+        {previewUrl && (
+          <iframe src={previewUrl} style={{ width: '100%', height: 700, border: 'none' }} title="Worksheet preview" />
+        )}
+        {!previewUrl && !previewing && <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Preview unavailable for online mode.</div>}
       </div>
 
       <h2>Generate Worksheets</h2>
@@ -178,13 +246,8 @@ export default function MicroUnitDetailPage() {
           <button onClick={handleGenerate} disabled={generating} style={{ padding: '8px 16px', background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6 }}>
             {generating ? 'Generating…' : 'Generate'}
           </button>
-          {mode !== 'online' && (
-            <button onClick={handlePreview} disabled={previewing} style={{ padding: '8px 16px', background: '#fff', color: '#1c3557', border: '1px solid #1c3557', borderRadius: 6 }}>
-              {previewing ? 'Loading…' : '👁 Preview'}
-            </button>
-          )}
-          {(genResult || previewUrl) && (
-            <button onClick={() => { setGenResult(null); setPreviewUrl(null); }} style={{ padding: '8px 16px', background: '#fff', color: '#666', border: '1px solid #ddd4c2', borderRadius: 6 }}>
+          {genResult && (
+            <button onClick={() => setGenResult(null)} style={{ padding: '8px 16px', background: '#fff', color: '#666', border: '1px solid #ddd4c2', borderRadius: 6 }}>
               Clear
             </button>
           )}
@@ -398,3 +461,14 @@ export default function MicroUnitDetailPage() {
 
 
 
+
+
+
+const toggleTrack = (on) => ({
+  width: 36, height: 20, borderRadius: 10, background: on ? '#1a7a3e' : '#ccc',
+  position: 'relative', cursor: 'pointer', transition: 'background 0.2s', display: 'inline-block', flexShrink: 0,
+});
+const toggleThumb = (on) => ({
+  position: 'absolute', top: 2, left: on ? 18 : 2, width: 16, height: 16,
+  borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+});
