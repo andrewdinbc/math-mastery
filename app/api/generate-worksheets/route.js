@@ -297,7 +297,7 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
 export async function POST(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language, includeAnswerKey } = await request.json();
+    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language, includeAnswerKey, previewOnly } = await request.json();
     if (!microUnitId || !mode) {
       return Response.json({ error: 'microUnitId and mode required' }, { status: 400 });
     }
@@ -339,6 +339,16 @@ export async function POST(request) {
         links,
         exemplarNote: links.length === 0 ? 'Your roster is empty - add students to generate real practice links.' : null,
       });
+    }
+
+    // Preview mode: generate exactly 1 real page (not the full 10-versions-
+    // per-student batch) so the teacher can check the layout before
+    // committing to a full generation run. Nothing gets saved to attempts.
+    if (previewOnly) {
+      const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage });
+      const previewQrPng = await fetchQrPng('preview', 150);
+      const outBytes = await generatePdfForStudent(effectiveUnit, questions, { id: 'preview', qr_code: 'PREVIEW' }, mode, previewQrPng, null, 1, questionsPerPage, labels, !!includeAnswerKey);
+      return Response.json({ mode, preview: true, pdfBase64: Buffer.from(outBytes).toString('base64') });
     }
 
     const isExemplar = (students || []).length === 0;
