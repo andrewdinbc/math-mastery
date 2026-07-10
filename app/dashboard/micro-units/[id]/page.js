@@ -14,6 +14,7 @@ export default function MicroUnitDetailPage() {
   const [mode, setMode] = useState('online');
   const [language, setLanguage] = useState('english');
   const [shuffleOrder, setShuffleOrder] = useState(false);
+  const [includeAnswerKey, setIncludeAnswerKey] = useState(false);
   const [students, setStudents] = useState([]);
   const [showAllVersions, setShowAllVersions] = useState({}); // studentId -> bool
   const [hoveredVersion, setHoveredVersion] = useState(null); // {studentId, versionNumber} | null
@@ -40,7 +41,7 @@ export default function MicroUnitDetailPage() {
       const res = await fetch('/api/generate-worksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames, language }),
+        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, studentNames, language, includeAnswerKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
@@ -123,6 +124,23 @@ export default function MicroUnitDetailPage() {
             >
               <span style={{
                 position: 'absolute', top: 2, left: shuffleOrder ? 18 : 2, width: 16, height: 16,
+                borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+              }} />
+            </span>
+          </label>
+        )}
+        {mode !== 'online' && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <span>Include Answer Key</span>
+            <span
+              onClick={() => setIncludeAnswerKey((v) => !v)}
+              style={{
+                width: 36, height: 20, borderRadius: 10, background: includeAnswerKey ? '#1a7a3e' : '#ccc',
+                position: 'relative', cursor: 'pointer', transition: 'background 0.2s', display: 'inline-block',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: includeAnswerKey ? 18 : 2, width: 16, height: 16,
                 borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
               }} />
             </span>
@@ -274,6 +292,7 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
 
 
