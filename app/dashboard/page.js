@@ -5,7 +5,7 @@ import TeacherDashboard from '@/components/TeacherDashboard';
 import StudentDashboard from '@/components/StudentDashboard';
 
 export const metadata = {
-  title: 'Dashboard - Mastery Studio',
+  title: 'Dashboard - Math Mastery Studio',
 };
 
 export default async function DashboardPage() {
