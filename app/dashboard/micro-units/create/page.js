@@ -63,6 +63,12 @@ export default function CreateMicroUnitPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
+
+      // sequence_order controls presentation order in the sidebar - append
+      // after whatever the teacher already has, in the order suggestions
+      // are added (matching the AI's foundational-to-advanced sequence).
+      const { count } = await supabase.from('micro_units').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id);
+
       const { data, error: insertError } = await supabase
         .from('micro_units')
         .insert({
@@ -75,6 +81,8 @@ export default function CreateMicroUnitPage() {
           default_mastery_pct: 80,
           question_count: unit.questionTemplate?.questions?.length || 1,
           resource_url: resourceUrl || null,
+          video_url: unit.videoUrl || null,
+          sequence_order: (count || 0) + index,
         })
         .select()
         .single();
@@ -195,3 +203,4 @@ export default function CreateMicroUnitPage() {
 }
 
 const inputStyle = { width: '100%', padding: 8, marginTop: 4, boxSizing: 'border-box' };
+
