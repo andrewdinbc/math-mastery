@@ -46,12 +46,15 @@ export async function POST(request) {
 
 Based on real research (not a guess)${resourceBlock ? ' and the attached reference material' : ''}, propose a logical sequence of 4-8 Units that build on each other from foundational to advanced, matching how CommonCoreSheets and standard grade-level curricula actually sequence this skill.
 
+Also use web_search to find a real, specific Math Antics video (mathantics.com or their YouTube channel "mathantics") that directly relates to each unit's skill - not just the general topic, the specific skill. Include its real URL.
+
 Respond with ONLY a JSON array (no other text, no markdown fences), each item shaped exactly like:
 {
   "title": "short title, e.g. 'Single-Step Addition Equations'",
   "strand": "e.g. 'algebra' (this is the Topic Area)",
   "grade": "e.g. '${grade || '7'}'",
   "description": "one sentence on what this unit covers and why it comes at this point in the sequence",
+  "videoUrl": "a real Math Antics video URL you found via search that matches this specific skill, or null if none is a good fit - do not guess a URL, only include one you actually verified via search",
   "questionTemplate": {
     "questions": [{ "prompt": "example question with {variable} placeholders, matching this unit's actual difficulty level", "answer_formula": "the formula" }],
     "randomizable_ranges": { "variable": { "min": 1, "max": 20 } }
