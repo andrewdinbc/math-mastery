@@ -72,10 +72,33 @@ export default function MicroUnitDetailPage() {
   const questions = unit.question_template?.questions || [];
   const ranges = unit.question_template?.randomizable_ranges;
 
+  function toEmbedUrl(url) {
+    if (!url) return '';
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+    if (match) return `https://www.youtube.com/embed/${match[1]}`;
+    return url; // fall back to whatever URL was found (e.g. a direct mathantics.com page)
+  }
+
   return (
     <main style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
       <h1>{unit.title}</h1>
       <p style={{ color: '#666' }}>Grade {unit.grade} • {unit.strand} • {unit.question_count} questions • {unit.default_mastery_pct}% mastery{unit.randomizable && ' • Randomizable'}</p>
+
+      {unit.video_url && (
+        <>
+          <h2>📺 Math Antics Video</h2>
+          <p style={{ fontSize: 12, color: '#888', marginTop: -8 }}>Project this to a TV for whole-class instruction before students practice.</p>
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, marginBottom: 24, borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+            <iframe
+              src={toEmbedUrl(unit.video_url)}
+              title="Math Antics video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+        </>
+      )}
 
       <h2>Example Worksheet</h2>
       <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 10, padding: 24, marginBottom: 24 }}>
@@ -292,6 +315,7 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
 
 
