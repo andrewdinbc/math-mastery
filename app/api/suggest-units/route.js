@@ -46,7 +46,10 @@ export async function POST(request) {
 
 Based on real research (not a guess)${resourceBlock ? ' and the attached reference material' : ''}, propose a logical sequence of 4-8 Units that build on each other from foundational to advanced, matching how CommonCoreSheets and standard grade-level curricula actually sequence this skill.
 
-Also use web_search to find a real, specific Math Antics video (mathantics.com or their YouTube channel "mathantics") that directly relates to each unit's skill - not just the general topic, the specific skill. Include its real URL.
+Also use web_search to find real videos for each unit's specific skill (not just the general topic):
+1. A Math Antics video - search specifically for site:youtube.com/@mathantics OR "mathantics" as the channel name in your query (e.g. 'mathantics [skill] youtube'). Their channel is https://www.youtube.com/@mathantics - only use a URL you've verified is actually from that channel, not a different channel that happens to also cover math.
+2. A Khan Academy video on the same skill, as a second option.
+Do not substitute one for the other - if you can't find a genuine Math Antics video for a skill, leave mathAnticsVideoUrl null rather than using a different channel's video there.
 
 Respond with ONLY a JSON array (no other text, no markdown fences), each item shaped exactly like:
 {
@@ -54,7 +57,8 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
   "strand": "e.g. 'algebra' (this is the Topic Area)",
   "grade": "e.g. '${grade || '7'}'",
   "description": "one sentence on what this unit covers and why it comes at this point in the sequence",
-  "videoUrl": "a real Math Antics video URL you found via search that matches this specific skill, or null if none is a good fit - do not guess a URL, only include one you actually verified via search",
+  "mathAnticsVideoUrl": "a REAL youtube.com/@mathantics video URL you verified via search, or null - never substitute a different channel here even if it covers the same topic",
+  "khanAcademyVideoUrl": "a real Khan Academy video URL you verified via search, or null",
   "questionTemplate": {
     "questions": [{ "prompt": "example question with {variable} placeholders, matching this unit's actual difficulty level", "answer_formula": "the formula" }],
     "randomizable_ranges": { "variable": { "min": 1, "max": 20 } }
@@ -128,7 +132,7 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
         // language + JSON combination is tripping the model up, not a
         // one-off fluke.
         const simplePrompt = `List 4 Units for teaching "${topic}"${grade ? ` at grade ${grade}` : ''}${lang ? ` in ${lang}` : ''}, foundational to advanced. Respond with ONLY a JSON array, nothing else:
-[{ "title": "...", "strand": "...", "grade": "${grade || '7'}", "description": "...", "videoUrl": null, "questionTemplate": { "questions": [{ "prompt": "... with {variable} placeholders", "answer_formula": "..." }], "randomizable_ranges": { "variable": { "min": 1, "max": 20 } } } }]`;
+[{ "title": "...", "strand": "...", "grade": "${grade || '7'}", "description": "...", "mathAnticsVideoUrl": null, "khanAcademyVideoUrl": null, "questionTemplate": { "questions": [{ "prompt": "... with {variable} placeholders", "answer_formula": "..." }], "randomizable_ranges": { "variable": { "min": 1, "max": 20 } } } }]`;
         const fallbackResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 2048,
@@ -147,5 +151,6 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
 
 
