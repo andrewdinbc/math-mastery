@@ -108,10 +108,28 @@ function shuffle(arr) {
 // time - it doesn't just render the pattern once. This now cycles through
 // the available pattern(s) to fill exactly targetCount questions, each an
 // independently randomized instance.
-function fillOneInstance(q, template, randomize) {
+// Difficulty is a 1-10 slider (5 = the unit's original authored range,
+// unchanged). Above 5, the top of each variable's range scales up
+// (bigger numbers, harder); below 5, it scales down (smaller numbers,
+// easier). The bottom of the range stays fixed - we're not making things
+// trivially easy, just narrowing/widening the harder end.
+function scaleRanges(ranges, difficulty) {
+  if (!ranges || difficulty === 5) return ranges;
+  const factor = difficulty / 5; // 1 -> 0.2x, 10 -> 2x
+  const scaled = {};
+  for (const [key, range] of Object.entries(ranges)) {
+    const span = range.max - range.min;
+    const newMax = Math.max(range.min + 1, Math.round(range.min + span * factor));
+    scaled[key] = { min: range.min, max: newMax };
+  }
+  return scaled;
+}
+
+function fillOneInstance(q, template, randomize, difficulty) {
   if (!randomize || !template.randomizable_ranges) return { ...q };
+  const ranges = scaleRanges(template.randomizable_ranges, difficulty ?? 5);
   const vars = {};
-  for (const [key, range] of Object.entries(template.randomizable_ranges)) {
+  for (const [key, range] of Object.entries(ranges)) {
     vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
   }
   let prompt = q.prompt;
@@ -121,16 +139,86 @@ function fillOneInstance(q, template, randomize) {
   return { ...q, prompt, resolvedVariables: vars };
 }
 
-function buildQuestions(template, { randomize, shuffleOrder, targetCount }) {
+function buildQuestions(template, { randomize, shuffleOrder, targetCount, difficulty }) {
   const patterns = template.questions;
   const count = targetCount || patterns.length;
   let questions = [];
   for (let i = 0; i < count; i++) {
     const pattern = patterns[i % patterns.length]; // cycle through available patterns
-    questions.push(fillOneInstance(pattern, template, randomize));
+    questions.push(fillOneInstance(pattern, template, randomize, difficulty));
   }
   if (shuffleOrder) questions = shuffle(questions);
   return questions;
+}
+
+// AI rewrites the instructions line at a simpler reading level, in the
+// target language, once per generation request (not per version).
+async function simplifyInstructionsText(instructions, language) {
+  if (!instructions) return instructions;
+  try {
+    const langNote = language && language !== 'english' ? ` Keep it in ${language}.` : '';
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: `Rewrite this worksheet instruction line for a younger/struggling reader - shorter sentences, simpler words, same meaning.${langNote} Respond with ONLY the rewritten line: "${instructions}"` }],
+    });
+    return message.content.find((b) => b.type === 'text')?.text?.trim() || instructions;
+  } catch {
+    return instructions;
+  }
+}
+
+// Generates one fully-worked example question (like the "Ex)" row on
+// CommonCoreSheets worksheets) - a real solved instance with step-by-step
+// reasoning shown, not just the answer.
+async function generateWorkedExample(template, language, difficulty) {
+  const pattern = template.questions[0];
+  if (!pattern) return null;
+  const ranges = scaleRanges(template.randomizable_ranges, difficulty ?? 5);
+  const vars = {};
+  for (const [key, range] of Object.entries(ranges || {})) {
+    vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+  }
+  let prompt = pattern.prompt;
+  for (const [key, val] of Object.entries(vars)) prompt = prompt.replaceAll(`{${key}}`, val);
+
+  try {
+    const langNote = language && language !== 'english' ? ` Write it in ${language}.` : '';
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: `Solve this math question step by step, showing the reasoning a student should follow, in 2-4 short numbered steps.${langNote} Question: "${prompt}"\n\nRespond with ONLY the numbered steps, no preamble.` }],
+    });
+    const steps = message.content.find((b) => b.type === 'text')?.text?.trim() || '';
+    return { prompt, steps };
+  } catch {
+    return null;
+  }
+}
+
+// Looks at a student's recent scores on this unit and nudges their
+// personal difficulty up or down from the base setting - struggling
+// students get an easier version, students doing well get pushed further.
+async function getStudentDifficulty(supabase, studentId, microUnitId, baseDifficulty) {
+  try {
+    const { data: recent } = await supabase
+      .from('attempts')
+      .select('score_pct')
+      .eq('student_id', studentId)
+      .eq('micro_unit_id', microUnitId)
+      .not('score_pct', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (!recent || recent.length === 0) return baseDifficulty;
+    const avg = recent.reduce((s, r) => s + r.score_pct, 0) / recent.length;
+    if (avg >= 90) return Math.min(10, baseDifficulty + 2);
+    if (avg >= 75) return Math.min(10, baseDifficulty + 1);
+    if (avg < 50) return Math.max(1, baseDifficulty - 2);
+    if (avg < 65) return Math.max(1, baseDifficulty - 1);
+    return baseDifficulty;
+  } catch {
+    return baseDifficulty;
+  }
 }
 
 // Wraps text to fit within maxWidth, returning an array of lines.
@@ -207,13 +295,30 @@ function drawAnswersColumn(page, font, startIndex, count) {
   }
 }
 
-async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentName, versionNumber, labels) {
+async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentName, versionNumber, labels, workedExample) {
   const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   await drawHeader(page, font, boldFont, unit, studentName, versionNumber, labels);
   drawAnswersColumn(page, font, startIndex, questions.length);
+
+  // Worked example ("Ex)" row) - only on the first page of a version, shown
+  // solved step-by-step so students see the reasoning before attempting
+  // their own questions, matching the CommonCoreSheets convention.
+  let gridTopOffset = 0;
+  if (workedExample && startIndex === 0) {
+    const exY = PAGE_H - HEADER_H;
+    const exWidth = PAGE_W - MARGIN - ANSWER_COL_W - 30;
+    page.drawText(`Ex) ${workedExample.prompt}`, { x: MARGIN, y: exY, size: 11, font: boldFont, color: rgb(0.1, 0.4, 0.1) });
+    const stepLines = wrapText(workedExample.steps, font, 9, exWidth).slice(0, 4);
+    let sy = exY - 14;
+    stepLines.forEach((line) => {
+      page.drawText(line, { x: MARGIN + 12, y: sy, size: 9, font, color: rgb(0.1, 0.4, 0.1) });
+      sy -= 11;
+    });
+    gridTopOffset = 14 + stepLines.length * 11 + 12;
+  }
 
   // 3-column grid to match CommonCoreSheets' actual layout - falls back to
   // 2 columns automatically when question text is long (word problems),
@@ -236,7 +341,7 @@ async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentNam
     const col = i % numCols;
     const row = Math.floor(i / numCols);
     const x = colXs[col];
-    let y = PAGE_H - HEADER_H - row * rowH;
+    let y = PAGE_H - HEADER_H - gridTopOffset - row * rowH;
     if (y < 50) return; // safety guard only - rowH is sized to fit, shouldn't trigger
 
     const numberedPrompt = `${startIndex + i + 1}) ${q.prompt}`;
@@ -278,7 +383,7 @@ function drawAnswerKeyPage(pdfDoc, unit, questions, startIndex, font, boldFont, 
   });
 }
 
-async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage, labels, includeAnswerKey) {
+async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage, labels, includeAnswerKey, workedExample) {
   const pdfDoc = await PDFDocument.create();
 
   if (unit.resource_url) {
@@ -311,7 +416,7 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
   // Standard generated layout, paginated at questionsPerPage per page.
   for (let start = 0; start < allQuestions.length; start += questionsPerPage) {
     const chunk = allQuestions.slice(start, start + questionsPerPage);
-    const page = await drawQuestionsPage(pdfDoc, unit, chunk, start, studentName, versionNumber, labels);
+    const page = await drawQuestionsPage(pdfDoc, unit, chunk, start, studentName, versionNumber, labels, workedExample);
     const qrImage = await pdfDoc.embedPng(qrPng);
     const qrSize = 55;
     page.drawImage(qrImage, { x: PAGE_W - qrSize - 15, y: PAGE_H - qrSize - 5, width: qrSize, height: qrSize });
@@ -332,7 +437,7 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
 export async function POST(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language, includeAnswerKey, previewOnly } = await request.json();
+    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language, includeAnswerKey, previewOnly, difficulty: difficultyInput, simplifyInstructions, showWorkedExample, differentiatePerStudent } = await request.json();
     if (!microUnitId || !mode) {
       return Response.json({ error: 'microUnitId and mode required' }, { status: 400 });
     }
@@ -340,6 +445,7 @@ export async function POST(request) {
       return Response.json({ error: "mode must be 'printed', 'blank', or 'online'" }, { status: 400 });
     }
     const questionsPerPage = Math.max(MIN_QUESTIONS_PER_PAGE, Number(qppInput) || MIN_QUESTIONS_PER_PAGE);
+    const baseDifficulty = Math.min(10, Math.max(1, Number(difficultyInput) || 5));
     const lang = ['english', 'french', 'spanish'].includes(language) ? language : 'english';
     const labels = STATIC_LABELS[lang];
 
@@ -354,7 +460,18 @@ export async function POST(request) {
     // fast regardless of how many students/versions are being generated.
     const translatedTemplate = mode !== 'online' ? await translateTemplate(unit.question_template, lang) : unit.question_template;
     const translatedTitle = mode !== 'online' ? await translateTitle(unit.title, lang) : unit.title;
-    const effectiveUnit = { ...unit, question_template: translatedTemplate, title: translatedTitle };
+    const finalInstructions = simplifyInstructions && mode !== 'online'
+      ? await simplifyInstructionsText(translatedTemplate.instructions, lang)
+      : translatedTemplate.instructions;
+    const effectiveUnit = {
+      ...unit,
+      question_template: { ...translatedTemplate, instructions: finalInstructions },
+      title: translatedTitle,
+    };
+
+    const workedExample = showWorkedExample && mode !== 'online'
+      ? await generateWorkedExample(effectiveUnit.question_template, lang, baseDifficulty)
+      : null;
 
     const { data: students, error: studErr } = await supabase
       .from('students')
@@ -381,9 +498,9 @@ export async function POST(request) {
     // per-student batch) so the teacher can check the layout before
     // committing to a full generation run. Nothing gets saved to attempts.
     if (previewOnly) {
-      const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage });
+      const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage, difficulty: baseDifficulty });
       const previewQrPng = await fetchQrPng('preview', 150);
-      const outBytes = await generatePdfForStudent(effectiveUnit, questions, { id: 'preview', qr_code: 'PREVIEW' }, mode, previewQrPng, null, 1, questionsPerPage, labels, !!includeAnswerKey);
+      const outBytes = await generatePdfForStudent(effectiveUnit, questions, { id: 'preview', qr_code: 'PREVIEW' }, mode, previewQrPng, null, 1, questionsPerPage, labels, !!includeAnswerKey, workedExample);
       return Response.json({ mode, preview: true, pdfBase64: Buffer.from(outBytes).toString('base64') });
     }
 
@@ -400,9 +517,15 @@ export async function POST(request) {
       // stored. Blank mode ignores this entirely by design.
       const suppliedName = mode === 'printed' ? studentNames?.[student.id] : null;
 
+      // Per-student difficulty, based on their recent scores on this unit,
+      // when differentiation is on - otherwise everyone gets baseDifficulty.
+      const studentDifficulty = differentiatePerStudent && !isExemplar
+        ? await getStudentDifficulty(supabase, student.id, microUnitId, baseDifficulty)
+        : baseDifficulty;
+
       for (let v = 1; v <= VERSIONS_PER_STUDENT; v++) {
-        const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage });
-        const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels, !!includeAnswerKey);
+        const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage, difficulty: studentDifficulty });
+        const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels, !!includeAnswerKey, workedExample);
 
         if (!isExemplar) {
           await supabase.from('attempts').insert({
@@ -431,3 +554,4 @@ export async function POST(request) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
