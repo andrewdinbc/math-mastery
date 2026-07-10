@@ -183,6 +183,11 @@ export default function MicroUnitDetailPage() {
               {previewing ? 'Loading…' : '👁 Preview'}
             </button>
           )}
+          {(genResult || previewUrl) && (
+            <button onClick={() => { setGenResult(null); setPreviewUrl(null); }} style={{ padding: '8px 16px', background: '#fff', color: '#666', border: '1px solid #ddd4c2', borderRadius: 6 }}>
+              Clear
+            </button>
+          )}
         </div>
         {mode !== 'online' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
