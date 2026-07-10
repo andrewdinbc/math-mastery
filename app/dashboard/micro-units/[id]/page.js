@@ -280,6 +280,21 @@ export default function MicroUnitDetailPage() {
       {genResult?.error && <div style={{ color: '#c00' }}>{genResult.error}</div>}
       {genResult?.exemplarNote && <div style={{ color: '#b57c2a', background: '#fff8ee', border: '1px solid #ddd4c2', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13 }}>ℹ️ {genResult.exemplarNote}</div>}
 
+      {mode === 'online' && (
+        <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🖥️ One Shared Class Link</div>
+          <p style={{ fontSize: 12, color: '#666', marginTop: 0, marginBottom: 10 }}>
+            Open this on the classroom device (TV/computer) - the whole class uses this one link. Each student then scans their own QR code, or types their first name (after you load the roster file once on this device).
+          </p>
+          <button
+            onClick={() => window.open(`/join/${id}`, '_blank')}
+            style={{ padding: '10px 20px', background: '#1c3557', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700 }}
+          >
+            Open Class Link (full screen)
+          </button>
+        </div>
+      )}
+
       {genResult?.links && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {genResult.links.map((l) => (
