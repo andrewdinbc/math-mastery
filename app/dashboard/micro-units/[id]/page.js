@@ -185,9 +185,14 @@ export default function MicroUnitDetailPage() {
               {l.qrPngBase64 && (
                 <img src={`data:image/png;base64,${l.qrPngBase64}`} alt="QR code" style={{ width: 70, height: 70 }} />
               )}
-              <div>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Scan with a personal device, or:</div>
-                <a href={l.url} target="_blank" rel="noreferrer">{l.studentId === 'exemplar' ? 'Example link' : 'Open practice link'}</a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <button
+                  onClick={() => window.open(`/qr-display?url=${encodeURIComponent(l.url)}&label=${encodeURIComponent(unit.title)}`, '_blank')}
+                  style={{ padding: '4px 10px', background: '#1c3557', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', width: 'fit-content' }}
+                >
+                  🔲 Open Full-Screen QR (new tab)
+                </button>
+                <a href={l.url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>{l.studentId === 'exemplar' ? 'Example link' : 'Open practice link'}</a>
               </div>
             </div>
           ))}
@@ -269,6 +274,7 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
 
 
