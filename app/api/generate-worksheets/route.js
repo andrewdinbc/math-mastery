@@ -86,20 +86,33 @@ function shuffle(arr) {
   return copy;
 }
 
-function buildQuestions(template, { randomize, shuffleOrder }) {
-  let questions = template.questions;
-  if (randomize && template.randomizable_ranges) {
-    questions = questions.map((q) => {
-      const vars = {};
-      for (const [key, range] of Object.entries(template.randomizable_ranges)) {
-        vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-      }
-      let prompt = q.prompt;
-      for (const [key, val] of Object.entries(vars)) {
-        prompt = prompt.replaceAll(`{${key}}`, val);
-      }
-      return { ...q, prompt, resolvedVariables: vars };
-    });
+// Root cause of "only 1 question per page": template.questions typically
+// holds just 1-2 QUESTION PATTERNS (e.g. one "division as multiplication"
+// pattern), not 10-20 individual questions. A real CommonCoreSheets-style
+// worksheet repeats that pattern many times with fresh random values each
+// time - it doesn't just render the pattern once. This now cycles through
+// the available pattern(s) to fill exactly targetCount questions, each an
+// independently randomized instance.
+function fillOneInstance(q, template, randomize) {
+  if (!randomize || !template.randomizable_ranges) return { ...q };
+  const vars = {};
+  for (const [key, range] of Object.entries(template.randomizable_ranges)) {
+    vars[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+  }
+  let prompt = q.prompt;
+  for (const [key, val] of Object.entries(vars)) {
+    prompt = prompt.replaceAll(`{${key}}`, val);
+  }
+  return { ...q, prompt, resolvedVariables: vars };
+}
+
+function buildQuestions(template, { randomize, shuffleOrder, targetCount }) {
+  const patterns = template.questions;
+  const count = targetCount || patterns.length;
+  let questions = [];
+  for (let i = 0; i < count; i++) {
+    const pattern = patterns[i % patterns.length]; // cycle through available patterns
+    questions.push(fillOneInstance(pattern, template, randomize));
   }
   if (shuffleOrder) questions = shuffle(questions);
   return questions;
@@ -167,22 +180,26 @@ async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentNam
   await drawHeader(page, font, boldFont, unit, studentName, versionNumber, labels);
   drawAnswersColumn(page, font, startIndex, questions.length);
 
-  // 2-column grid for the questions themselves - narrower than a 3-column
-  // layout so word-problem text has room to wrap instead of running off
-  // the page edge.
+  // 3-column grid to match CommonCoreSheets' actual layout - falls back to
+  // 2 columns automatically when question text is long (word problems),
+  // since 3 narrow columns would force too much wrapping and risk overflow.
+  const avgPromptLen = questions.reduce((sum, q) => sum + q.prompt.length, 0) / (questions.length || 1);
+  const numCols = avgPromptLen > 45 ? 2 : 3;
+
   const gridLeft = MARGIN;
   const gridRight = PAGE_W - MARGIN - ANSWER_COL_W - 20;
-  const colW = (gridRight - gridLeft - 20) / 2;
-  const colXs = [gridLeft, gridLeft + colW + 20];
+  const colGap = 20;
+  const colW = (gridRight - gridLeft - colGap * (numCols - 1)) / numCols;
+  const colXs = Array.from({ length: numCols }, (_, i) => gridLeft + i * (colW + colGap));
 
-  const rowsNeeded = Math.ceil(questions.length / 2);
+  const rowsNeeded = Math.ceil(questions.length / numCols);
   const availableH = PAGE_H - HEADER_H - 50;
-  const rowH = Math.max(60, availableH / rowsNeeded);
+  const rowH = Math.max(55, availableH / rowsNeeded);
   const maxTextWidth = colW - 10;
 
   questions.forEach((q, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
+    const col = i % numCols;
+    const row = Math.floor(i / numCols);
     const x = colXs[col];
     let y = PAGE_H - HEADER_H - row * rowH;
     if (y < 50) return; // safety guard only - rowH is sized to fit, shouldn't trigger
@@ -303,7 +320,7 @@ export async function POST(request) {
       const suppliedName = mode === 'printed' ? studentNames?.[student.id] : null;
 
       for (let v = 1; v <= VERSIONS_PER_STUDENT; v++) {
-        const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder });
+        const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage });
         const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels);
 
         if (!isExemplar) {
