@@ -146,18 +146,39 @@ export default function MicroUnitDetailPage() {
       </div>
       <p style={{ color: '#666' }}>Grade {unit.grade} • {unit.strand} • {unit.question_count} questions • {unit.default_mastery_pct}% mastery{unit.randomizable && ' • Randomizable'}</p>
 
-      {unit.video_url && (
+      {(unit.video_url || unit.khan_academy_video_url) && (
         <>
-          <h2>📺 Math Antics Video</h2>
-          <p style={{ fontSize: 12, color: '#888', marginTop: -8 }}>Project this to a TV for whole-class instruction before students practice.</p>
-          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, marginBottom: 24, borderRadius: 10, overflow: 'hidden', background: '#000' }}>
-            <iframe
-              src={toEmbedUrl(unit.video_url)}
-              title="Math Antics video"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-            />
+          <h2>📺 Instructional Videos</h2>
+          <p style={{ fontSize: 12, color: '#888', marginTop: -8 }}>Project to a TV for whole-class instruction before students practice.</p>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            {unit.video_url && (
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Math Antics</div>
+                <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+                  <iframe
+                    src={toEmbedUrl(unit.video_url)}
+                    title="Math Antics video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
+            {unit.khan_academy_video_url && (
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Khan Academy</div>
+                <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+                  <iframe
+                    src={toEmbedUrl(unit.khan_academy_video_url)}
+                    title="Khan Academy video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -472,3 +493,4 @@ const toggleThumb = (on) => ({
   position: 'absolute', top: 2, left: on ? 18 : 2, width: 16, height: 16,
   borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
 });
+
