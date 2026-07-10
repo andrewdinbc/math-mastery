@@ -1,11 +1,29 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-// Narrow upsell sidebar, matching the reference CommonCoreSheets-style
-// narrow left nav pattern - always visible, pointing toward the Tier 3
-// full ecosystem offering (optimizeyourfreedom.com per the TeacherAssist
-// 3-tier business model).
+// Narrow sidebar - now doubles as a unit navigator, listing the teacher's
+// units in the order they'll be presented (sequence_order, set when a
+// unit is added via AI Research), plus the existing upsell content below.
 
 export default function UpsellSidebar() {
+  const supabase = createClientComponentClient();
+  const [units, setUnits] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('micro_units')
+        .select('id, title, sequence_order, created_at')
+        .eq('teacher_id', user.id)
+        .order('sequence_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
+      setUnits(data || []);
+    })();
+  }, []);
+
   return (
     <div
       style={{
@@ -27,6 +45,22 @@ export default function UpsellSidebar() {
         overflowY: 'auto',
       }}
     >
+      {units.length > 0 && (
+        <>
+          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: 0.3 }}>📚 YOUR UNITS</div>
+          <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {units.map((u) => (
+              <li key={u.id}>
+                <a href={`/dashboard/micro-units/${u.id}`} style={{ color: '#fff', textDecoration: 'none', opacity: 0.9 }}>
+                  {u.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '4px 0' }} />
+        </>
+      )}
+
       <div style={{ fontWeight: 800, fontSize: 12, color: '#b57c2a', letterSpacing: 0.3 }}>
         ✨ GO FURTHER
       </div>
