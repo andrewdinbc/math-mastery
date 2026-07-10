@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // Narrow sidebar - now doubles as a unit navigator, listing the teacher's
@@ -8,21 +9,34 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function UpsellSidebar() {
   const supabase = createClientComponentClient();
+  const pathname = usePathname();
   const [units, setUnits] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from('micro_units')
-        .select('id, title, sequence_order, created_at')
-        .eq('teacher_id', user.id)
-        .order('sequence_order', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: true });
-      setUnits(data || []);
-    })();
+  const fetchUnits = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('micro_units')
+      .select('id, title, sequence_order, created_at')
+      .eq('teacher_id', user.id)
+      .order('sequence_order', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: true });
+    setUnits(data || []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refetch whenever the route changes (fallback) and immediately when a
+  // unit is added via the custom event Create Unit dispatches - this
+  // sidebar is mounted once at the app level, so it wouldn't otherwise see
+  // a newly added unit until something explicitly tells it to look again.
+  useEffect(() => {
+    fetchUnits();
+  }, [pathname, fetchUnits]);
+
+  useEffect(() => {
+    window.addEventListener('mm-unit-added', fetchUnits);
+    return () => window.removeEventListener('mm-unit-added', fetchUnits);
+  }, [fetchUnits]);
 
   return (
     <div
@@ -106,4 +120,5 @@ export default function UpsellSidebar() {
     </div>
   );
 }
+
 
