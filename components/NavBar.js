@@ -21,7 +21,7 @@ export default function NavBar({ session }) {
     <nav className={styles.navbar}>
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>
-          Mastery Studio
+          Math Mastery Studio
         </Link>
         <div className={styles.menu}>
           {session ? (
