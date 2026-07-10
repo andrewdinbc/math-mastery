@@ -45,21 +45,33 @@ export default function UpsellSidebar() {
         overflowY: 'auto',
       }}
     >
-      {units.length > 0 && (
-        <>
-          <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: 0.3 }}>📚 YOUR UNITS</div>
-          <ol style={{ paddingLeft: 16, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {units.map((u) => (
-              <li key={u.id}>
-                <a href={`/dashboard/micro-units/${u.id}`} style={{ color: '#fff', textDecoration: 'none', opacity: 0.9 }}>
-                  {u.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '4px 0' }} />
-        </>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: 0.3 }}>📚 YOUR UNITS</div>
+        <a
+          href="/dashboard/micro-units/create"
+          title="Create Unit"
+          style={{
+            width: 18, height: 18, borderRadius: 4, background: '#b57c2a', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+            fontWeight: 800, textDecoration: 'none', flexShrink: 0,
+          }}
+        >
+          +
+        </a>
+      </div>
+      {units.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {units.map((u, i) => (
+            <a key={u.id} href={`/dashboard/micro-units/${u.id}`} style={{ color: '#fff', textDecoration: 'none', opacity: 0.9, display: 'flex', gap: 4 }}>
+              <span style={{ fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+              <span>{u.title}</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div style={{ opacity: 0.7, fontStyle: 'italic' }}>No units yet</div>
       )}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', margin: '4px 0' }} />
 
       <div style={{ fontWeight: 800, fontSize: 12, color: '#b57c2a', letterSpacing: 0.3 }}>
         ✨ GO FURTHER
@@ -94,3 +106,4 @@ export default function UpsellSidebar() {
     </div>
   );
 }
+
