@@ -64,11 +64,26 @@ Respond with ONLY valid JSON, no markdown fences, in this exact shape:
   }
 }
 
+async function translateTitle(title, language) {
+  if (language === 'english' || !language || !title) return title;
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: `Translate this worksheet title into ${language}. Respond with ONLY the translated title, no quotes, no other text: "${title}"` }],
+    });
+    const translated = message.content.find((b) => b.type === 'text')?.text?.trim();
+    return translated || title;
+  } catch {
+    return title;
+  }
+}
+
 const PAGE_W = 612;
 const PAGE_H = 792;
 const MARGIN = 40;
 const ANSWER_COL_W = 90;
-const HEADER_H = 110; // room for title + name/QR
+const HEADER_H = 150; // room for up to 2-line title + name + up to 2-line instructions, clear of the QR corner
 
 async function fetchQrPng(data, sizePx = 150) {
   const url = `${QR_API}?size=${sizePx}x${sizePx}&data=${encodeURIComponent(data)}`;
@@ -138,15 +153,35 @@ function wrapText(text, font, size, maxWidth) {
 
 async function drawHeader(page, font, boldFont, unit, studentName, versionNumber, labels) {
   const { width, height } = page.getSize();
-  page.drawText(unit.title || 'Math Practice', { x: MARGIN, y: height - 40, size: 16, font: boldFont });
-  page.drawText(labels.version(versionNumber, VERSIONS_PER_STUDENT), { x: width - 150, y: height - 25, size: 8, color: rgb(0.5, 0.5, 0.5), font });
+  const qrReserve = 75; // QR occupies the top-right 55x55 box + margin - nothing else may enter this zone
+  const contentWidth = width - MARGIN - qrReserve;
 
-  // Name field - top right, QR gets overlaid to the right of/over this by the caller.
+  // Title - wrapped to stay clear of the QR corner entirely (previous bug:
+  // fixed-position title/name text ran directly under/behind the QR for
+  // any non-trivial title length, and never accounted for translated
+  // titles being longer in French/Spanish).
+  const titleText = unit.title || 'Math Practice';
+  const titleLines = wrapText(titleText, boldFont, 15, contentWidth).slice(0, 2); // cap at 2 lines
+  let y = height - 30;
+  titleLines.forEach((line) => {
+    page.drawText(line, { x: MARGIN, y, size: 15, font: boldFont });
+    y -= 18;
+  });
+
+  // Name field - its own line below the title, never sharing a row with
+  // the QR or competing for the same horizontal space.
+  y -= 4;
   const nameLabel = studentName ? `${labels.name} ${studentName}` : `${labels.name} _______________________`;
-  page.drawText(nameLabel, { x: width - 260, y: height - 45, size: 11, font });
+  page.drawText(nameLabel, { x: MARGIN, y, size: 11, font });
+  page.drawText(labels.version(versionNumber, VERSIONS_PER_STUDENT), { x: width - qrReserve - 5, y: height - 8, size: 7, color: rgb(0.5, 0.5, 0.5), font, });
 
+  y -= 22;
   const instructions = unit.question_template?.instructions || labels.defaultInstructions;
-  page.drawText(instructions, { x: MARGIN, y: height - 65, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+  const instrLines = wrapText(instructions, font, 10, contentWidth);
+  instrLines.forEach((line) => {
+    page.drawText(line, { x: MARGIN, y, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+    y -= 13;
+  });
 
   // Divider before the Answers column
   page.drawLine({
@@ -318,7 +353,8 @@ export async function POST(request) {
     // Translate once per generation request, not per version - keeps this
     // fast regardless of how many students/versions are being generated.
     const translatedTemplate = mode !== 'online' ? await translateTemplate(unit.question_template, lang) : unit.question_template;
-    const effectiveUnit = { ...unit, question_template: translatedTemplate };
+    const translatedTitle = mode !== 'online' ? await translateTitle(unit.title, lang) : unit.title;
+    const effectiveUnit = { ...unit, question_template: translatedTemplate, title: translatedTitle };
 
     const { data: students, error: studErr } = await supabase
       .from('students')
