@@ -134,10 +134,26 @@ export default function CreateMicroUnitPage() {
             <option value="french">Français</option>
             <option value="spanish">Español</option>
           </select>
-          <button type="submit" disabled={researching} style={{ padding: '0 16px', background: '#1c3557', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, whiteSpace: 'nowrap' }}>
+          <button type="submit" disabled={researching} style={{ padding: '0 16px', background: '#1c3557', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {researching && <span style={spinnerStyle} />}
             {researching ? 'Researching…' : 'Research & Suggest'}
           </button>
+          {(suggestions || suggestError) && (
+            <button
+              type="button"
+              onClick={() => { setSuggestions(null); setSuggestError(''); setAiTopic(''); setAiGrade(''); }}
+              style={{ padding: '0 14px', background: '#fff', color: '#666', border: '1px solid #ddd4c2', borderRadius: 6, whiteSpace: 'nowrap' }}
+            >
+              Clear
+            </button>
+          )}
         </form>
+        {researching && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: '#666' }}>
+            <span style={darkSpinnerStyle} />
+            Searching CommonCoreSheets and Math Antics for real material…
+          </div>
+        )}
         {suggestError && <div style={{ color: '#c00', marginTop: 10, fontSize: 13 }}>{suggestError}</div>}
         {suggestions && (
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -203,4 +219,32 @@ export default function CreateMicroUnitPage() {
 }
 
 const inputStyle = { width: '100%', padding: 8, marginTop: 4, boxSizing: 'border-box' };
+
+const spinnerStyle = {
+  display: 'inline-block',
+  width: 14,
+  height: 14,
+  border: '2px solid rgba(255,255,255,0.4)',
+  borderTopColor: '#fff',
+  borderRadius: '50%',
+  animation: 'mm-spin 0.7s linear infinite',
+};
+
+const darkSpinnerStyle = {
+  display: 'inline-block',
+  width: 14,
+  height: 14,
+  border: '2px solid rgba(28,53,87,0.25)',
+  borderTopColor: '#1c3557',
+  borderRadius: '50%',
+  animation: 'mm-spin 0.7s linear infinite',
+};
+
+if (typeof document !== 'undefined' && !document.getElementById('mm-spin-keyframes')) {
+  const style = document.createElement('style');
+  style.id = 'mm-spin-keyframes';
+  style.textContent = '@keyframes mm-spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+}
+
 
