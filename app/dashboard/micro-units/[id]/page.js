@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function MicroUnitDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const supabase = createClientComponentClient();
   const [unit, setUnit] = useState(null);
   const [attempts, setAttempts] = useState([]);
@@ -21,6 +22,9 @@ export default function MicroUnitDetailPage() {
   const [questionsPerPage, setQuestionsPerPage] = useState(10);
   const [nameFile, setNameFile] = useState(null);
   const [studentNames, setStudentNames] = useState(null); // {studentId: name} - loaded locally, sent once, never stored
+  const [deleting, setDeleting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -52,6 +56,37 @@ export default function MicroUnitDetailPage() {
     setGenerating(false);
   }
 
+  async function handleDelete() {
+    if (!confirm(`Delete "${unit.title}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const { error: delError } = await supabase.from('micro_units').delete().eq('id', id);
+      if (delError) throw delError;
+      router.push('/dashboard');
+    } catch (err) {
+      alert('Failed to delete: ' + err.message);
+      setDeleting(false);
+    }
+  }
+
+  async function handlePreview() {
+    setPreviewing(true);
+    setPreviewUrl(null);
+    try {
+      const res = await fetch('/api/generate-worksheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ microUnitId: id, mode, shuffleOrder, questionsPerPage, language, includeAnswerKey, previewOnly: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Preview failed');
+      setPreviewUrl(`data:application/pdf;base64,${data.pdfBase64}`);
+    } catch (err) {
+      alert('Preview failed: ' + err.message);
+    }
+    setPreviewing(false);
+  }
+
   // Example-values preview - fills placeholders with a representative
   // mid-range value so the teacher can see the actual format, like the
   // CommonCoreSheets preview pane.
@@ -81,7 +116,16 @@ export default function MicroUnitDetailPage() {
 
   return (
     <main style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
-      <h1>{unit.title}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <h1 style={{ margin: 0 }}>{unit.sequence_order != null && `Unit ${unit.sequence_order + 1}: `}{unit.title}</h1>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          style={{ padding: '6px 12px', background: '#fff', color: '#b03a2e', border: '1px solid #b03a2e', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+        >
+          {deleting ? 'Deleting…' : '🗑 Delete Unit'}
+        </button>
+      </div>
       <p style={{ color: '#666' }}>Grade {unit.grade} • {unit.strand} • {unit.question_count} questions • {unit.default_mastery_pct}% mastery{unit.randomizable && ' • Randomizable'}</p>
 
       {unit.video_url && (
@@ -134,6 +178,11 @@ export default function MicroUnitDetailPage() {
           <button onClick={handleGenerate} disabled={generating} style={{ padding: '8px 16px', background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6 }}>
             {generating ? 'Generating…' : 'Generate'}
           </button>
+          {mode !== 'online' && (
+            <button onClick={handlePreview} disabled={previewing} style={{ padding: '8px 16px', background: '#fff', color: '#1c3557', border: '1px solid #1c3557', borderRadius: 6 }}>
+              {previewing ? 'Loading…' : '👁 Preview'}
+            </button>
+          )}
         </div>
         {mode !== 'online' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
@@ -215,6 +264,13 @@ export default function MicroUnitDetailPage() {
           <div style={{ fontSize: 12, color: '#888' }}>Generates {10} different versions per student.</div>
         )}
       </div>
+
+      {previewUrl && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Preview — full page as it will print:</div>
+          <iframe src={previewUrl} style={{ width: '100%', height: 700, border: '1px solid #ddd4c2', borderRadius: 8 }} title="Worksheet preview" />
+        </div>
+      )}
 
       {genResult?.error && <div style={{ color: '#c00' }}>{genResult.error}</div>}
       {genResult?.exemplarNote && <div style={{ color: '#b57c2a', background: '#fff8ee', border: '1px solid #ddd4c2', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13 }}>ℹ️ {genResult.exemplarNote}</div>}
@@ -315,6 +371,7 @@ export default function MicroUnitDetailPage() {
     </main>
   );
 }
+
 
 
 
