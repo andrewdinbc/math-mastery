@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { setupRosterFolder, findRosterFile, saveRosterFile, hasRosterFolderSetUp, isRosterFolderSupported } from '@/lib/roster-folder';
 
 // This is the ONLY place a real name and real student data ever appear
 // together - and only when you choose to load your local roster file here.
@@ -14,6 +15,22 @@ export default function RosterManagerPage() {
   const [combined, setCombined] = useState(null); // joined view
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [folderSetUp, setFolderSetUp] = useState(false);
+  const [checkingFolder, setCheckingFolder] = useState(false);
+
+  useState(() => {
+    hasRosterFolderSetUp().then(setFolderSetUp);
+  });
+
+  function parseRosterCsv(text) {
+    const lines = text.trim().split('\n').slice(1); // skip header row
+    return lines
+      .map((line) => {
+        const [qrCode, firstName] = line.split(',');
+        return { qrCode: qrCode?.trim(), firstName: firstName?.trim() };
+      })
+      .filter((r) => r.qrCode && r.firstName);
+  }
 
   async function handleLoadRosterFile(e) {
     const file = e.target.files?.[0];
@@ -21,18 +38,49 @@ export default function RosterManagerPage() {
     setError('');
     try {
       const text = await file.text();
-      const lines = text.trim().split('\n').slice(1); // skip header row
-      const roster = lines
-        .map((line) => {
-          const [qrCode, firstName] = line.split(',');
-          return { qrCode: qrCode?.trim(), firstName: firstName?.trim() };
-        })
-        .filter((r) => r.qrCode && r.firstName);
+      const roster = parseRosterCsv(text);
       setLocalRoster(roster);
       await joinWithCloudData(roster);
     } catch (err) {
       setError('Could not read that roster file: ' + err.message);
     }
+  }
+
+  async function handleSetupFolder() {
+    const result = await setupRosterFolder();
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setFolderSetUp(true);
+    setError('');
+  }
+
+  // The "button push" flow Aj specified: only checks the folder when this
+  // is explicitly clicked - never automatically on page load.
+  async function handleFindInFolder() {
+    setCheckingFolder(true);
+    setError('');
+    try {
+      const result = await findRosterFile('roster.csv');
+      if (!result.ok) {
+        const messages = {
+          not_supported: 'Your browser doesn\'t support this (Chrome or Edge only) - use manual upload instead.',
+          no_folder_set_up: 'No Roster Manager folder set up yet - click "Set Up Roster Folder" first.',
+          permission_denied: 'Permission to that folder was denied.',
+          file_not_found: 'Roster Manager cannot find the file - create a new one or locate it yourself using manual upload.',
+        };
+        setError(messages[result.error] || result.error);
+        setCheckingFolder(false);
+        return;
+      }
+      const roster = parseRosterCsv(result.text);
+      setLocalRoster(roster);
+      await joinWithCloudData(roster);
+    } catch (err) {
+      setError('Failed to check the folder: ' + err.message);
+    }
+    setCheckingFolder(false);
   }
 
   async function joinWithCloudData(roster) {
@@ -89,11 +137,31 @@ export default function RosterManagerPage() {
       </p>
 
       {!localRoster && (
-        <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 20 }}>
-          <label style={{ fontWeight: 700, fontSize: 13, display: 'block', marginBottom: 8 }}>
-            Load your local roster file (downloaded when you added students)
-          </label>
-          <input type="file" accept=".csv" onChange={handleLoadRosterFile} />
+        <div style={{ background: '#f9f5ec', border: '1px solid #ddd4c2', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 13, display: 'block', marginBottom: 8 }}>
+              🗂 Roster Manager folder {folderSetUp ? '(set up)' : '(not set up yet)'}
+            </label>
+            {!folderSetUp ? (
+              <button onClick={handleSetupFolder} style={{ padding: '8px 16px', background: '#1c3557', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13 }}>
+                Set Up Roster Folder (one-time)
+              </button>
+            ) : (
+              <button onClick={handleFindInFolder} disabled={checkingFolder} style={{ padding: '8px 16px', background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13 }}>
+                {checkingFolder ? 'Checking…' : '🔍 Look for Roster File'}
+              </button>
+            )}
+            <p style={{ fontSize: 11, color: '#888', marginTop: 6, marginBottom: 0 }}>
+              Chrome/Edge only. One-time setup creates a "Roster Manager" folder wherever you choose (Documents or Downloads work well) - after that, this button checks it automatically, no picker.
+            </p>
+          </div>
+
+          <div style={{ borderTop: '1px solid #ddd4c2', paddingTop: 12 }}>
+            <label style={{ fontWeight: 700, fontSize: 13, display: 'block', marginBottom: 8 }}>
+              Or load manually
+            </label>
+            <input type="file" accept=".csv" onChange={handleLoadRosterFile} />
+          </div>
         </div>
       )}
 
@@ -140,3 +208,4 @@ export default function RosterManagerPage() {
     </main>
   );
 }
+
