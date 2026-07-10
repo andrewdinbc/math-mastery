@@ -13,7 +13,7 @@ import ChromeWrapper from '@/components/ChromeWrapper';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Mastery Studio',
+  title: 'Math Mastery Studio',
   description: 'Self-paced mastery-gated math practice',
 };
 
@@ -30,7 +30,7 @@ export default async function RootLayout({ children }) {
           session={session}
           devModePanel={
             <DevModePanel
-              productName="Mastery Studio"
+              productName="Math Mastery Studio"
               sourceRepo="andrewdinbc/math-mastery"
               userEmail="andrewsinbc3@gmail.com"
               userKey="owner"
