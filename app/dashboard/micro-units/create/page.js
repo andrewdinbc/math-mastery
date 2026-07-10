@@ -8,6 +8,7 @@ export default function CreateMicroUnitPage() {
   const [aiGrade, setAiGrade] = useState('');
   const [language, setLanguage] = useState('english');
   const [researching, setResearching] = useState(false);
+  const [researchProgress, setResearchProgress] = useState(0);
   const [suggestions, setSuggestions] = useState(null);
   const [suggestError, setSuggestError] = useState('');
   const [addingIndex, setAddingIndex] = useState(null);
@@ -41,8 +42,18 @@ export default function CreateMicroUnitPage() {
   async function handleResearch(e) {
     e.preventDefault();
     setResearching(true);
+    setResearchProgress(0);
     setSuggestError('');
     setSuggestions(null);
+
+    // There's no real progress signal from a single opaque AI call, so this
+    // is a time-based estimate (research typically takes ~15-25s) - caps at
+    // 90% until the real response arrives, then jumps to 100%, rather than
+    // pretending to know exact completion.
+    const progressTimer = setInterval(() => {
+      setResearchProgress((p) => (p >= 90 ? 90 : p + Math.random() * 8));
+    }, 700);
+
     try {
       const res = await fetch('/api/suggest-units', {
         method: 'POST',
@@ -51,11 +62,13 @@ export default function CreateMicroUnitPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Research failed');
+      setResearchProgress(100);
       setSuggestions(data.units);
     } catch (err) {
       setSuggestError(err.message || 'Failed to research units');
     }
-    setResearching(false);
+    clearInterval(progressTimer);
+    setTimeout(() => setResearching(false), 300); // brief pause so 100% is visible
   }
 
   async function handleAddSuggestion(unit, index) {
@@ -81,13 +94,17 @@ export default function CreateMicroUnitPage() {
           default_mastery_pct: 80,
           question_count: unit.questionTemplate?.questions?.length || 1,
           resource_url: resourceUrl || null,
-          video_url: unit.videoUrl || null,
+          video_url: unit.mathAnticsVideoUrl || null,
+          khan_academy_video_url: unit.khanAcademyVideoUrl || null,
           sequence_order: (count || 0) + index,
         })
         .select()
         .single();
       if (insertError) throw insertError;
       setSuggestions((prev) => prev.map((u, i) => (i === index ? { ...u, added: true, newId: data.id } : u)));
+      // Let the sidebar know immediately - it's mounted once at the app
+      // level and won't otherwise see this new row until a route change.
+      window.dispatchEvent(new CustomEvent('mm-unit-added'));
     } catch (err) {
       setSuggestError(err.message || 'Failed to add unit');
     }
@@ -149,9 +166,14 @@ export default function CreateMicroUnitPage() {
           )}
         </form>
         {researching && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: '#666' }}>
-            <span style={darkSpinnerStyle} />
-            Searching CommonCoreSheets and Math Antics for real material…
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#666', marginBottom: 6 }}>
+              <span style={darkSpinnerStyle} />
+              Searching CommonCoreSheets and Math Antics for real material…
+            </div>
+            <div style={{ width: '100%', height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${researchProgress}%`, height: '100%', background: '#1c3557', transition: 'width 0.4s ease' }} />
+            </div>
           </div>
         )}
         {suggestError && <div style={{ color: '#c00', marginTop: 10, fontSize: 13 }}>{suggestError}</div>}
@@ -246,5 +268,6 @@ if (typeof document !== 'undefined' && !document.getElementById('mm-spin-keyfram
   style.textContent = '@keyframes mm-spin { to { transform: rotate(360deg); } }';
   document.head.appendChild(style);
 }
+
 
 
