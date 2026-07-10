@@ -119,8 +119,26 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
       });
       const retryText = retryResponse.content.find((b) => b.type === 'text')?.text || '';
       units = extractJson(retryText);
+
       if (!units) {
-        return Response.json({ error: 'AI response was not valid JSON after retry - try again, or try a narrower topic.', raw: retryText.slice(0, 500) }, { status: 502 });
+        // Second fallback: a fresh, much simpler attempt - no web_search
+        // tool, no resource block, smaller array requested. Trades some
+        // research depth for reliability as a last resort, since two
+        // failures in a row usually means something about the tool-use +
+        // language + JSON combination is tripping the model up, not a
+        // one-off fluke.
+        const simplePrompt = `List 4 Units for teaching "${topic}"${grade ? ` at grade ${grade}` : ''}${lang ? ` in ${lang}` : ''}, foundational to advanced. Respond with ONLY a JSON array, nothing else:
+[{ "title": "...", "strand": "...", "grade": "${grade || '7'}", "description": "...", "videoUrl": null, "questionTemplate": { "questions": [{ "prompt": "... with {variable} placeholders", "answer_formula": "..." }], "randomizable_ranges": { "variable": { "min": 1, "max": 20 } } } }]`;
+        const fallbackResponse = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: simplePrompt }],
+        });
+        const fallbackText = fallbackResponse.content.find((b) => b.type === 'text')?.text || '';
+        units = extractJson(fallbackText);
+        if (!units) {
+          return Response.json({ error: 'AI research failed to format correctly after two retries - please try again.', raw: fallbackText.slice(0, 500) }, { status: 502 });
+        }
       }
     }
 
@@ -129,4 +147,5 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
 
