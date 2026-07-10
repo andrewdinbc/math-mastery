@@ -78,12 +78,50 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
       messages = [...messages, { role: 'assistant', content: response.content }];
     }
 
-    const cleaned = finalText.replace(/```json|```/g, '').trim();
-    let units;
-    try {
-      units = JSON.parse(cleaned);
-    } catch {
-      return Response.json({ error: 'AI response was not valid JSON', raw: finalText.slice(0, 500) }, { status: 502 });
+    // Robust JSON extraction: models sometimes wrap the array in a
+    // sentence or two even when told not to (more common when a language
+    // instruction is also in play) - extract from the first [ to the last
+    // ] rather than requiring the whole response to be pure JSON.
+    function extractJson(text) {
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        const start = cleaned.indexOf('[');
+        const end = cleaned.lastIndexOf(']');
+        if (start !== -1 && end !== -1 && end > start) {
+          try {
+            return JSON.parse(cleaned.slice(start, end + 1));
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      }
+    }
+
+    let units = extractJson(finalText);
+
+    if (!units) {
+      // One retry with an explicit, unmistakable instruction - real fix for
+      // the case Aj hit (grade 6 long division, Spanish): the language
+      // instruction combined with the JSON-only instruction sometimes
+      // isn't followed strictly enough on the first pass.
+      const retryMessages = [
+        ...messages,
+        { role: 'assistant', content: finalText },
+        { role: 'user', content: 'That response was not valid JSON. Respond again with ONLY the JSON array - no preamble, no explanation, no markdown fences, starting with [ and ending with ].' },
+      ];
+      const retryResponse = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        messages: retryMessages,
+      });
+      const retryText = retryResponse.content.find((b) => b.type === 'text')?.text || '';
+      units = extractJson(retryText);
+      if (!units) {
+        return Response.json({ error: 'AI response was not valid JSON after retry - try again, or try a narrower topic.', raw: retryText.slice(0, 500) }, { status: 502 });
+      }
     }
 
     return Response.json({ ok: true, units });
