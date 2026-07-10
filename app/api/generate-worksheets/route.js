@@ -217,7 +217,33 @@ async function drawQuestionsPage(pdfDoc, unit, questions, startIndex, studentNam
   return page;
 }
 
-async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage, labels) {
+function computeAnswer(q) {
+  if (!q.answer_formula || !q.resolvedVariables) return null;
+  try {
+    // Safe-ish: only ever evaluates AI/teacher-authored formulas (e.g. "a+b")
+    // against numeric variables resolved server-side, not arbitrary user input.
+    const fn = new Function(...Object.keys(q.resolvedVariables), `return ${q.answer_formula};`);
+    return fn(...Object.values(q.resolvedVariables));
+  } catch {
+    return null;
+  }
+}
+
+function drawAnswerKeyPage(pdfDoc, unit, questions, startIndex, font, boldFont, labels) {
+  const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  const { height } = page.getSize();
+  page.drawText(`${unit.title || 'Math Practice'} — ${labels.answers} Key`, { x: MARGIN, y: height - 40, size: 16, font: boldFont, color: rgb(0.7, 0.1, 0.1) });
+
+  let y = height - 80;
+  questions.forEach((q, i) => {
+    const answer = computeAnswer(q);
+    page.drawText(`${startIndex + i + 1}) ${answer != null ? answer : '—'}`, { x: MARGIN, y, size: 12, font, color: rgb(0.7, 0.1, 0.1) });
+    y -= 22;
+    if (y < 50) return;
+  });
+}
+
+async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, studentName, versionNumber, questionsPerPage, labels, includeAnswerKey) {
   const pdfDoc = await PDFDocument.create();
 
   if (unit.resource_url) {
@@ -256,13 +282,22 @@ async function generatePdfForStudent(unit, allQuestions, student, mode, qrPng, s
     page.drawImage(qrImage, { x: PAGE_W - qrSize - 15, y: PAGE_H - qrSize - 5, width: qrSize, height: qrSize });
   }
 
+  if (includeAnswerKey) {
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    for (let start = 0; start < allQuestions.length; start += questionsPerPage) {
+      const chunk = allQuestions.slice(start, start + questionsPerPage);
+      drawAnswerKeyPage(pdfDoc, unit, chunk, start, font, boldFont, labels);
+    }
+  }
+
   return pdfDoc.save();
 }
 
 export async function POST(request) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language } = await request.json();
+    const { microUnitId, mode, shuffleOrder, questionsPerPage: qppInput, studentNames, language, includeAnswerKey } = await request.json();
     if (!microUnitId || !mode) {
       return Response.json({ error: 'microUnitId and mode required' }, { status: 400 });
     }
@@ -321,7 +356,7 @@ export async function POST(request) {
 
       for (let v = 1; v <= VERSIONS_PER_STUDENT; v++) {
         const questions = buildQuestions(effectiveUnit.question_template, { randomize: effectiveUnit.randomizable, shuffleOrder: !!shuffleOrder, targetCount: questionsPerPage });
-        const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels);
+        const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels, !!includeAnswerKey);
 
         if (!isExemplar) {
           await supabase.from('attempts').insert({
