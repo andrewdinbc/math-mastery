@@ -27,9 +27,9 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <NavBar session={session} />
         <UpsellSidebar />
         <div style={{ marginLeft: 130 }}>
+          <NavBar session={session} />
           {children}
         </div>
         <DevModePanel
