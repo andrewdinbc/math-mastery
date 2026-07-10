@@ -31,7 +31,8 @@ async function buildResourceBlock(resourceUrl) {
 
 export async function POST(request) {
   try {
-    const { topic, grade, resourceUrl } = await request.json();
+    const { topic, grade, resourceUrl, language } = await request.json();
+    const lang = language && language !== 'english' ? language : null;
     if (!topic) return Response.json({ error: 'topic required' }, { status: 400 });
 
     let resourceBlock = null;
@@ -41,7 +42,7 @@ export async function POST(request) {
       return Response.json({ error: e.message }, { status: 400 });
     }
 
-    const promptText = `Research CommonCoreSheets.com's worksheet categories and structure for the topic "${topic}"${grade ? ` at grade ${grade}` : ''}. Use web_search to actually look at how they break this topic into a sequence of skills (their category/subcategory structure, and the progression of individual worksheet titles within it - e.g. for "Using Substitutions to Solve Problems" they go from single-step to multi-step, addition/subtraction to multiplication/division, then combined operations).${resourceBlock ? '\n\nA teacher has also attached an example worksheet or lesson (above) - use it as a real reference for style, difficulty level, and format. Your suggested Units should match what this specific teacher is already doing, not just generic grade-level defaults.' : ''}
+    const promptText = `Research CommonCoreSheets.com's worksheet categories and structure for the topic "${topic}"${grade ? ` at grade ${grade}` : ''}. Use web_search to actually look at how they break this topic into a sequence of skills (their category/subcategory structure, and the progression of individual worksheet titles within it - e.g. for "Using Substitutions to Solve Problems" they go from single-step to multi-step, addition/subtraction to multiplication/division, then combined operations).${resourceBlock ? '\n\nA teacher has also attached an example worksheet or lesson (above) - use it as a real reference for style, difficulty level, and format. Your suggested Units should match what this specific teacher is already doing, not just generic grade-level defaults.' : ''}${lang ? `\n\nWrite all titles, descriptions, and question prompts in ${lang}. Keep {variable} placeholders and answer_formula fields unchanged (they're not language-specific).` : ''}
 
 Based on real research (not a guess)${resourceBlock ? ' and the attached reference material' : ''}, propose a logical sequence of 4-8 Units that build on each other from foundational to advanced, matching how CommonCoreSheets and standard grade-level curricula actually sequence this skill.
 
@@ -87,3 +88,4 @@ Respond with ONLY a JSON array (no other text, no markdown fences), each item sh
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
