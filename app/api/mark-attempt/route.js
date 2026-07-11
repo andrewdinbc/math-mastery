@@ -31,7 +31,7 @@ export async function POST(request) {
 
     // Fetch micro_unit to get question_template and default_mastery_pct
     const { data: microUnit, error: muError } = await supabase
-      .from('micro_units')
+      .from('mastery_micro_units')
       .select('id, question_template, default_mastery_pct')
       .eq('id', microUnitId)
       .single();
@@ -45,7 +45,7 @@ export async function POST(request) {
 
     // Fetch or determine student's mastery threshold
     const { data: thresholdRow } = await supabase
-      .from('student_mastery_thresholds')
+      .from('mastery_student_mastery_thresholds')
       .select('mastery_pct')
       .eq('student_id', studentId)
       .eq('micro_unit_id', microUnitId)
@@ -123,7 +123,7 @@ scorePct should be the percentage of questions answered correctly.`;
 
     // Get attempt number for this student/micro_unit
     const { data: lastAttempt } = await supabase
-      .from('attempts')
+      .from('mastery_attempts')
       .select('attempt_number')
       .eq('student_id', studentId)
       .eq('micro_unit_id', microUnitId)
@@ -134,7 +134,7 @@ scorePct should be the percentage of questions answered correctly.`;
 
     // Insert attempt record
     const { data: insertedAttempt, error: attemptError } = await supabase
-      .from('attempts')
+      .from('mastery_attempts')
       .insert({
         student_id: studentId,
         micro_unit_id: microUnitId,
@@ -229,7 +229,7 @@ Return a JSON object (and ONLY valid JSON, no other text):
           remediationContent.followUpQuestions?.map((_, idx) => idx) ?? [];
 
         const { data: remediationSession, error: remError } = await supabase
-          .from('remediation_sessions')
+          .from('mastery_remediation_sessions')
           .insert({
             attempt_id: insertedAttempt.id,
             error_pattern: mostCommonError,

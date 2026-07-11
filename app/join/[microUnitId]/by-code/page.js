@@ -16,7 +16,7 @@ export default async function JoinByCodePage({ params, searchParams }) {
   }
 
   const { data: student, error } = await supabaseAdmin
-    .from('students')
+    .from('mastery_students')
     .select('*')
     .eq('qr_code', qr)
     .single();
@@ -29,6 +29,6 @@ export default async function JoinByCodePage({ params, searchParams }) {
 }
 
 async function getUnitTeacher(microUnitId) {
-  const { data } = await supabaseAdmin.from('micro_units').select('teacher_id').eq('id', microUnitId).single();
+  const { data } = await supabaseAdmin.from('mastery_micro_units').select('teacher_id').eq('id', microUnitId).single();
   return data?.teacher_id;
 }

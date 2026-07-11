@@ -35,7 +35,7 @@ export default function CreateStudentPage() {
         qr_code: 'STU-' + Math.random().toString(36).slice(2, 10).toUpperCase(),
       }));
 
-      const { data, error: insertError } = await supabase.from('students').insert(rows).select();
+      const { data, error: insertError } = await supabase.from('mastery_students').insert(rows).select();
       if (insertError) throw insertError;
 
       // Pair the returned QR codes with the names IN THIS BROWSER ONLY -

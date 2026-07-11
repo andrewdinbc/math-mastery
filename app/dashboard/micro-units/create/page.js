@@ -80,10 +80,10 @@ export default function CreateMicroUnitPage() {
       // sequence_order controls presentation order in the sidebar - append
       // after whatever the teacher already has, in the order suggestions
       // are added (matching the AI's foundational-to-advanced sequence).
-      const { count } = await supabase.from('micro_units').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id);
+      const { count } = await supabase.from('mastery_micro_units').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id);
 
       const { data, error: insertError } = await supabase
-        .from('micro_units')
+        .from('mastery_micro_units')
         .insert({
           teacher_id: user.id,
           title: unit.title,

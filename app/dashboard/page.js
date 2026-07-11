@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   // Check if user is a teacher
   const { data: teacher } = await supabase
-    .from('teachers')
+    .from('mastery_teachers')
     .select('id')
     .eq('id', session.user.id)
     .single();

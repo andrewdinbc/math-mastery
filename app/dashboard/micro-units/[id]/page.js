@@ -33,9 +33,9 @@ export default function MicroUnitDetailPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: u } = await supabase.from('micro_units').select('*').eq('id', id).single();
-      const { data: a } = await supabase.from('attempts').select('*, students(qr_code)').eq('micro_unit_id', id).order('created_at', { ascending: false });
-      const { data: s } = u ? await supabase.from('students').select('*').eq('teacher_id', u.teacher_id) : { data: [] };
+      const { data: u } = await supabase.from('mastery_micro_units').select('*').eq('id', id).single();
+      const { data: a } = await supabase.from('mastery_attempts').select('*, students(qr_code)').eq('micro_unit_id', id).order('created_at', { ascending: false });
+      const { data: s } = u ? await supabase.from('mastery_students').select('*').eq('teacher_id', u.teacher_id) : { data: [] };
       setUnit(u);
       setAttempts(a || []);
       setStudents(s || []);
@@ -65,7 +65,7 @@ export default function MicroUnitDetailPage() {
     if (!confirm(`Delete "${unit.title}"? This cannot be undone.`)) return;
     setDeleting(true);
     try {
-      const { error: delError } = await supabase.from('micro_units').delete().eq('id', id);
+      const { error: delError } = await supabase.from('mastery_micro_units').delete().eq('id', id);
       if (delError) throw delError;
       router.push('/dashboard');
     } catch (err) {

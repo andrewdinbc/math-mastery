@@ -90,11 +90,11 @@ export default function RosterManagerPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
 
-      const { data: students, error: sErr } = await supabase.from('students').select('*').eq('teacher_id', user.id);
+      const { data: students, error: sErr } = await supabase.from('mastery_students').select('*').eq('teacher_id', user.id);
       if (sErr) throw sErr;
 
       const { data: attempts, error: aErr } = await supabase
-        .from('attempts')
+        .from('mastery_attempts')
         .select('student_id, score_pct, passed_threshold, micro_units(title, strand)')
         .in('student_id', (students || []).map((s) => s.id))
         .order('created_at', { ascending: false });

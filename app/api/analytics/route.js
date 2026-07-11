@@ -37,7 +37,7 @@ export async function GET(request) {
 
     let teacherId;
     if (syncSecret && process.env.MICRO_UNIT_SYNC_SECRET && syncSecret === process.env.MICRO_UNIT_SYNC_SECRET && teacherEmailParam) {
-      const { data: teacher } = await supabase.from('teachers').select('id').eq('email', teacherEmailParam).single();
+      const { data: teacher } = await supabase.from('mastery_teachers').select('id').eq('email', teacherEmailParam).single();
       if (!teacher) {
         return Response.json({ error: `No Mastery Studio teacher account found for ${teacherEmailParam}` }, { status: 404, headers: CORS_HEADERS });
       }
@@ -53,7 +53,7 @@ export async function GET(request) {
     }
 
     const { data: attempts, error: attErr } = await supabase
-      .from('attempts')
+      .from('mastery_attempts')
       .select('*, micro_units!inner(strand, teacher_id, title), students!inner(qr_code)')
       .eq('micro_units.teacher_id', teacherId);
     if (attErr) return Response.json({ error: attErr.message }, { status: 500, headers: CORS_HEADERS });

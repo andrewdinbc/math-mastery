@@ -23,7 +23,7 @@ export default function TeacherDashboard({ userId }) {
 
       // Fetch micro_units
       const { data: muData, error: muError } = await supabase
-        .from('micro_units')
+        .from('mastery_micro_units')
         .select('*')
         .eq('teacher_id', userId)
         .order('created_at', { ascending: false });
@@ -32,7 +32,7 @@ export default function TeacherDashboard({ userId }) {
 
       // Fetch students
       const { data: stdData, error: stdError } = await supabase
-        .from('students')
+        .from('mastery_students')
         .select('*')
         .eq('teacher_id', userId)
         .order('created_at', { ascending: true }); // display_name is encrypted - sorting by it is meaningless

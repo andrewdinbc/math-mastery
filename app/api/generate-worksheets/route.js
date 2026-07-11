@@ -202,7 +202,7 @@ async function generateWorkedExample(template, language, difficulty) {
 async function getStudentDifficulty(supabase, studentId, microUnitId, baseDifficulty) {
   try {
     const { data: recent } = await supabase
-      .from('attempts')
+      .from('mastery_attempts')
       .select('score_pct')
       .eq('student_id', studentId)
       .eq('micro_unit_id', microUnitId)
@@ -450,7 +450,7 @@ export async function POST(request) {
     const labels = STATIC_LABELS[lang];
 
     const { data: unit, error: unitErr } = await supabase
-      .from('micro_units')
+      .from('mastery_micro_units')
       .select('*')
       .eq('id', microUnitId)
       .single();
@@ -474,7 +474,7 @@ export async function POST(request) {
       : null;
 
     const { data: students, error: studErr } = await supabase
-      .from('students')
+      .from('mastery_students')
       .select('*')
       .eq('teacher_id', unit.teacher_id);
     if (studErr) return Response.json({ error: studErr.message }, { status: 500 });
@@ -528,7 +528,7 @@ export async function POST(request) {
         const outBytes = await generatePdfForStudent(effectiveUnit, questions, student, mode, qrPng, suppliedName, v, questionsPerPage, labels, !!includeAnswerKey, workedExample);
 
         if (!isExemplar) {
-          await supabase.from('attempts').insert({
+          await supabase.from('mastery_attempts').insert({
             student_id: student.id,
             micro_unit_id: microUnitId,
             submitted_via: mode === 'blank' ? 'blank_scan' : 'scan',

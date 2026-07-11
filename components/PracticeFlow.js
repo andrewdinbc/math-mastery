@@ -58,7 +58,7 @@ export default function PracticeFlow({ microUnit, studentId }) {
     (async () => {
       try {
         const { data: threshold } = await supabase
-          .from('student_mastery_thresholds')
+          .from('mastery_student_mastery_thresholds')
           .select('mastery_pct')
           .eq('student_id', studentId)
           .eq('micro_unit_id', microUnit.id)
@@ -119,7 +119,7 @@ export default function PracticeFlow({ microUnit, studentId }) {
     const passedThreshold = scorePct >= mastery;
 
     try {
-      await supabase.from('attempts').insert({
+      await supabase.from('mastery_attempts').insert({
         student_id: studentId,
         micro_unit_id: microUnit.id,
         submitted_via: 'web',

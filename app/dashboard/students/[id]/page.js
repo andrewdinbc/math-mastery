@@ -13,9 +13,9 @@ export default function StudentDetailPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: s } = await supabase.from('students').select('*').eq('id', id).single();
-      const { data: a } = await supabase.from('attempts').select('*, micro_units(title)').eq('student_id', id).order('created_at', { ascending: false });
-      const { data: t } = await supabase.from('student_mastery_thresholds').select('*, micro_units(title)').eq('student_id', id);
+      const { data: s } = await supabase.from('mastery_students').select('*').eq('id', id).single();
+      const { data: a } = await supabase.from('mastery_attempts').select('*, micro_units(title)').eq('student_id', id).order('created_at', { ascending: false });
+      const { data: t } = await supabase.from('mastery_student_mastery_thresholds').select('*, micro_units(title)').eq('student_id', id);
       setStudent(s);
       setAttempts(a || []);
       setThresholds(t || []);

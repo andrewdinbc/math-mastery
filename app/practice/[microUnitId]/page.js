@@ -25,7 +25,7 @@ export default async function PracticePage({ params, searchParams }) {
   }
 
   const { data: microUnit, error: unitErr } = await supabaseAdmin
-    .from('micro_units')
+    .from('mastery_micro_units')
     .select('*')
     .eq('id', params.microUnitId)
     .single();
@@ -38,7 +38,7 @@ export default async function PracticePage({ params, searchParams }) {
   // (sanity check on the two opaque IDs matching up) - not an auth gate,
   // just confirms the link is legitimate.
   const { data: student } = await supabaseAdmin
-    .from('students')
+    .from('mastery_students')
     .select('*')
     .eq('id', studentId)
     .single();

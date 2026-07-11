@@ -24,7 +24,7 @@ export async function POST(request) {
         return Response.json({ error: 'teacherEmail required for cross-app sync' }, { status: 400 });
       }
       const supabase = createServerComponentClient({ cookies });
-      const { data: teacher } = await supabase.from('teachers').select('id').eq('email', body.teacherEmail).single();
+      const { data: teacher } = await supabase.from('mastery_teachers').select('id').eq('email', body.teacherEmail).single();
       if (!teacher) {
         return Response.json({ error: `No Mastery Studio teacher account found for ${body.teacherEmail} - they need to sign up in Mastery Studio first.` }, { status: 404 });
       }
@@ -45,7 +45,7 @@ export async function POST(request) {
 
     const supabase = createServerComponentClient({ cookies });
     const { data, error } = await supabase
-      .from('micro_units')
+      .from('mastery_micro_units')
       .insert({
         teacher_id: teacherId,
         lesson_planner_ref: lessonPlannerRef || null,

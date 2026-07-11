@@ -23,7 +23,7 @@ export default function StudentDashboard({ userId }) {
 
       // Get student record
       const { data: stdData, error: stdError } = await supabase
-        .from('students')
+        .from('mastery_students')
         .select('*')
         .eq('id', userId)
         .single();
@@ -39,7 +39,7 @@ export default function StudentDashboard({ userId }) {
 
       // Get available micro_units from teacher
       const { data: muData, error: muError } = await supabase
-        .from('micro_units')
+        .from('mastery_micro_units')
         .select('*')
         .eq('teacher_id', stdData.teacher_id)
         .order('created_at', { ascending: false });
