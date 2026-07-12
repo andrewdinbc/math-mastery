@@ -82,10 +82,23 @@ export async function POST(request) {
 
     const overrideMap = Object.fromEntries((studentOverrides || []).map((o) => [o.studentId, o]))
 
+    // Create the drill record first so QR codes have a real drill ID to
+    // point at - answer keys get filled in per student below, then saved
+    // once at the end.
+    const { data: drillRow, error: drillInsertError } = await supabase
+      .from('mastery_drills')
+      .insert({ teacher_id: session.user.id, title, problem_count: problemCount, answer_key_by_student: {} })
+      .select('id')
+      .single()
+    if (drillInsertError || !drillRow) {
+      return Response.json({ error: 'Could not create drill record' }, { status: 500 })
+    }
+
     const pdfDoc = await PDFDocument.create()
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
     const answerKeyByStudent = {}
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://math-mastery-three.vercel.app'
 
     for (const student of students) {
       const override = overrideMap[student.id]
@@ -94,26 +107,23 @@ export async function POST(request) {
       const problems = generateDrillProblems(problemCount, factMin, factMax)
       answerKeyByStudent[student.qr_code] = problems.map((p) => p.answer)
 
-      const qrBytes = await fetchQrPng(student.qr_code)
+      // QR must encode a real submission URL, not the raw student code -
+      // matches the pattern the rest of this app already uses (see
+      // app/qr-display/page.js). A raw ID would just show as plain text
+      // when scanned, not open anything.
+      const submitUrl = `${baseUrl}/drill-submit/${drillRow.id}/${encodeURIComponent(student.qr_code)}`
+      const qrBytes = await fetchQrPng(submitUrl)
       await drawDrillPage(pdfDoc, font, title, problems, qrBytes, student.qr_code)
     }
 
-    // Store the drill + per-student answer keys so a later scan-and-mark
-    // step (next piece to build) can check submissions against the right
-    // sheet - each student got different numbers, so the answer key has
-    // to be tracked per student, not once per worksheet.
-    await supabase.from('mastery_drills').insert({
-      teacher_id: session.user.id,
-      title,
-      problem_count: problemCount,
-      answer_key_by_student: answerKeyByStudent,
-    })
+    await supabase.from('mastery_drills').update({ answer_key_by_student: answerKeyByStudent }).eq('id', drillRow.id)
 
     const pdfBytes = await pdfDoc.save()
     return new Response(pdfBytes, {
-      headers: { 'Content-Type': 'application/pdf', 'X-Student-Count': String(students.length) },
+      headers: { 'Content-Type': 'application/pdf', 'X-Student-Count': String(students.length), 'X-Drill-Id': drillRow.id },
     })
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 })
   }
 }
+
