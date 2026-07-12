@@ -65,18 +65,31 @@ ${JSON.stringify(rawAnswers, null, 2)}
 
 Based on the question_template (which contains correct answers and the mathematical problem structure), evaluate each answer.
 
+For any WRONG answer, work through the correct solution as a numbered sequence of steps, then
+identify which specific step number is where the student's answer would have diverged from
+correct - not just a category of mistake, but "this happened at step 2 of solving this problem."
+Infer the likely divergence point from the type of wrong answer given (e.g. if the sign is flipped
+but magnitude is right, the error is almost certainly at the step where a negative sign gets
+applied; if the answer is off by a specific factor, it's likely a step involving that operation).
+
 Return a JSON object (and ONLY valid JSON, no other text) with this structure:
 {
   "perQuestionResults": [
     {
       "questionIndex": 0,
       "correct": true,
-      "errorType": null
+      "errorType": null,
+      "errorStep": null
     },
     {
       "questionIndex": 1,
       "correct": false,
-      "errorType": "sign_error"
+      "errorType": "sign_error",
+      "errorStep": {
+        "stepNumber": 2,
+        "correctSteps": ["Step 1: Distribute -3 across (x + 4) to get -3x - 12", "Step 2: Combine with the remaining 2x term: -3x - 12 + 2x", "Step 3: Combine like terms: -x - 12"],
+        "whatWentWrong": "At step 2, when combining -3x and 2x, the negative sign was dropped, giving x - 12 instead of -x - 12"
+      }
     }
   ],
   "scorePct": 50
@@ -248,6 +261,58 @@ Return a JSON object (and ONLY valid JSON, no other text):
             workedExample: remediationContent.workedExample,
             followUpQuestions: remediationContent.followUpQuestions,
           };
+
+          // Video-style tutorial built around the student's own exact
+          // missed question, not a generic re-explanation - per Aj, styled
+          // like a short instructional video (hook, step-by-step walkthrough,
+          // the specific step that went wrong called out explicitly).
+          const missedResult = markingResult.perQuestionResults.find(
+            (r) => !r.correct && r.errorType === mostCommonError && r.errorStep
+          );
+
+          if (missedResult) {
+            const missedQuestion = rawAnswers[missedResult.questionIndex];
+            const tutorialPrompt = `Write a short (60-90 second) video-style tutorial script explaining this exact
+math question a student got wrong, matching the tone of a quick "Learn How to" style
+instructional short: direct, encouraging, one clear worked example, no fluff.
+
+The exact question the student attempted: ${JSON.stringify(missedQuestion)}
+The correct step-by-step solution: ${JSON.stringify(missedResult.errorStep.correctSteps)}
+Exactly where their approach likely went wrong: ${missedResult.errorStep.whatWentWrong}
+
+Respond with ONLY valid JSON, no markdown fences, no preamble:
+{
+  "title": "short punchy title, e.g. 'Distributing Negatives Made Easy'",
+  "hook": "1 sentence to open - relatable, not preachy",
+  "steps": [
+    { "narration": "what to say for this step", "workShown": "the math notation for this step" }
+  ],
+  "commonMistakeCallout": "1-2 sentences calling out the exact mistake pattern, framed supportively",
+  "practicePrompt": "one closing line encouraging them to try the follow-up questions"
+}`;
+
+            try {
+              const tutorialResponse = await anthropic.messages.create({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 1200,
+                messages: [{ role: 'user', content: tutorialPrompt }],
+              });
+              const tutorialText = tutorialResponse.content[0].type === 'text' ? tutorialResponse.content[0].text : '';
+              const tutorialScript = JSON.parse(tutorialText.replace(/```json|```/g, '').trim());
+
+              await supabase
+                .from('mastery_remediation_sessions')
+                .update({ remediation_content: { ...remediationContent, videoTutorial: tutorialScript } })
+                .eq('id', remediationSession.id);
+
+              remediationData.videoTutorial = tutorialScript;
+              remediationData.errorStep = missedResult.errorStep;
+            } catch {
+              // Tutorial generation is additive - if it fails, the rest of
+              // the remediation (explanation, worked example, follow-ups)
+              // still returns successfully.
+            }
+          }
         }
       }
     }
