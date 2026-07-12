@@ -54,8 +54,8 @@ export async function GET(request) {
 
     const { data: attempts, error: attErr } = await supabase
       .from('mastery_attempts')
-      .select('*, micro_units!inner(strand, teacher_id, title), students!inner(qr_code)')
-      .eq('micro_units.teacher_id', teacherId);
+      .select('*, mastery_micro_units!inner(strand, teacher_id, title), mastery_students!inner(qr_code)')
+      .eq('mastery_micro_units.teacher_id', teacherId);
     if (attErr) return Response.json({ error: attErr.message }, { status: 500, headers: CORS_HEADERS });
 
     const rows = attempts || [];
@@ -89,7 +89,7 @@ export async function GET(request) {
     // Strengths / Areas for Growth: group by strand
     const strandScores = {};
     rows.forEach((r) => {
-      const strand = r.micro_units?.strand || 'unspecified';
+      const strand = r.mastery_micro_units?.strand || 'unspecified';
       strandScores[strand] = strandScores[strand] || [];
       strandScores[strand].push(r);
     });
@@ -109,7 +109,7 @@ export async function GET(request) {
           ...new Set(
             strandScores[s.strand]
               .filter((r) => !r.passed_threshold)
-              .map((r) => r.students?.qr_code)
+              .map((r) => r.mastery_students?.qr_code)
               .filter(Boolean)
           ),
         ],
@@ -128,3 +128,4 @@ export async function GET(request) {
     return Response.json({ error: e.message }, { status: 500, headers: CORS_HEADERS });
   }
 }
+
