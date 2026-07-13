@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import ProgressChart from '../../components/ProgressChart'
 
 const C = { navy: '#1c3557', gold: '#b57c2a', green: '#2e7d4f', red: '#c0392b', border: '#ddd4c2' }
 
@@ -132,7 +133,12 @@ export default function PracticeHomePage() {
             )}
           </>
         )}
+
+        <div style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 20, marginTop: 24 }}>
+          <ProgressChart qrCode={qrCode} viewer="student" />
+        </div>
       </div>
     </div>
   )
 }
+

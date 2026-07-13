@@ -5,6 +5,48 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 import styles from './TeacherDashboard.module.css';
 
+function DisplaySettings() {
+  const [settings, setSettings] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    fetch('/api/display-settings').then((r) => r.json()).then((d) => setSettings(d.settings)).catch(() => {});
+  }, []);
+  async function save(next) {
+    setSettings(next);
+    setSaving(true);
+    try {
+      await fetch('/api/display-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+    } finally {
+      setSaving(false);
+    }
+  }
+  if (!settings) return null;
+  return (
+    <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, color: '#1c3557', marginBottom: 10, fontSize: 14 }}>⚙️ Progress Display Settings {saving && <span style={{ fontSize: 11, color: '#8a7d6e' }}>(saving…)</span>}</div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 12, color: '#8a7d6e', display: 'block', marginBottom: 4 }}>Students see scores as:</label>
+        <select value={settings.score_display_mode} onChange={(e) => save({ ...settings, score_display_mode: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #ddd4c2' }}>
+          <option value="percentage">Percentage</option>
+          <option value="letter">Letter Grade</option>
+          <option value="scale">4-Point Scale</option>
+          <option value="feedback_only">Feedback Only (no number)</option>
+        </select>
+      </div>
+      <div style={{ fontSize: 12, color: '#8a7d6e', marginBottom: 6 }}>Parents can see:</div>
+      <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>
+        <input type="checkbox" checked={settings.parent_show_scores} onChange={(e) => save({ ...settings, parent_show_scores: e.target.checked })} /> Scores
+      </label>
+      <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>
+        <input type="checkbox" checked={settings.parent_show_feedback} onChange={(e) => save({ ...settings, parent_show_feedback: e.target.checked })} /> Written feedback
+      </label>
+      <label style={{ display: 'block', fontSize: 13 }}>
+        <input type="checkbox" checked={settings.parent_show_baseline} onChange={(e) => save({ ...settings, parent_show_baseline: e.target.checked })} /> Start-of-year baseline (students never see this, regardless of this setting)
+      </label>
+    </div>
+  );
+}
+
 function OffTaskAlerts() {
   const [alerts, setAlerts] = useState([]);
   useEffect(() => {
@@ -80,6 +122,7 @@ export default function TeacherDashboard({ userId }) {
       <div className={styles.container}>
         <h1>Teacher Dashboard</h1>
 
+        <DisplaySettings />
         <OffTaskAlerts />
 
         {error && <div className={styles.error}>{error}</div>}
