@@ -66,10 +66,20 @@ export async function GET(request, { params }) {
       if (attemptIds.length) {
         const { data: sessions } = await supabaseAdmin
           .from('mastery_remediation_sessions')
-          .select('id, error_pattern, remediation_content, resolved')
+          .select('id, error_pattern, remediation_content, resolved, video_bank_id')
           .in('attempt_id', attemptIds)
           .eq('resolved', false)
         remediation = sessions || []
+
+        const bankIds = remediation.map((r) => r.video_bank_id).filter(Boolean)
+        if (bankIds.length) {
+          const { data: bankRows } = await supabaseAdmin
+            .from('mastery_video_bank')
+            .select('id, specificity, video_status, video_url, times_reused')
+            .in('id', bankIds)
+          const bankMap = Object.fromEntries((bankRows || []).map((b) => [b.id, b]))
+          remediation = remediation.map((r) => ({ ...r, videoBank: bankMap[r.video_bank_id] || null }))
+        }
       }
     }
 
@@ -86,4 +96,5 @@ export async function GET(request, { params }) {
     return Response.json({ error: e.message }, { status: 500 })
   }
 }
+
 

@@ -134,6 +134,28 @@ export default function PracticeHomePage() {
                         <div style={{ fontWeight: 700, color: C.navy, fontSize: 14 }}>{tutorial?.title || r.error_pattern?.replace(/_/g, ' ') || 'Review this mistake'}</div>
                         <div style={{ fontSize: 11, color: '#8a7d6e' }}>{isOpen ? 'Tap to close' : 'Tap to read the tutorial'}</div>
                       </button>
+                      {isOpen && (
+                        <>
+                          {r.videoBank && (
+                            <div style={{ marginTop: 10, marginBottom: 4 }}>
+                              {r.videoBank.video_status === 'ready' && r.videoBank.video_url ? (
+                                <a href={r.videoBank.video_url} target="_blank" rel="noreferrer" style={{
+                                  display: 'inline-block', padding: '6px 12px', background: C.navy, color: '#fff', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600,
+                                }}>
+                                  🎬 Watch the video
+                                </a>
+                              ) : (
+                                <div style={{ fontSize: 11, color: '#8a7d6e', fontStyle: 'italic' }}>
+                                  🎬 A short video for this is being made — read the tutorial below for now.
+                                </div>
+                              )}
+                              {r.videoBank.times_reused > 0 && (
+                                <div style={{ fontSize: 10, color: '#8a7d6e', marginTop: 4 }}>This video has already helped other students with the same kind of mistake.</div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
                       {isOpen && tutorial && (
                         <div style={{ marginTop: 12, fontSize: 13, color: '#3a352c' }}>
                           <p style={{ fontStyle: 'italic', marginBottom: 10 }}>{tutorial.hook}</p>
@@ -163,5 +185,6 @@ export default function PracticeHomePage() {
     </div>
   )
 }
+
 
 

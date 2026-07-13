@@ -262,6 +262,76 @@ Return a JSON object (and ONLY valid JSON, no other text):
             followUpQuestions: remediationContent.followUpQuestions,
           };
 
+          // Video bank: reuse before regenerate, escalate on repeat.
+          // Per Aj: most errors cluster into a small number of recurring
+          // patterns, so the FIRST time a student hits sign_error_on_division
+          // (say) in this strand, check whether ANY student has already
+          // triggered a generic video for that exact (error_pattern, strand)
+          // pair - if so, reuse it (no new render, no new cost). Only
+          // generate fresh if the bank genuinely has nothing yet, and mark
+          // that new one as reusable for the next student who hits the same
+          // pattern. If THIS student has already seen the generic video for
+          // this error_pattern before and is making the same mistake again,
+          // the generic explanation clearly isn't landing - escalate to a
+          // question-specific video instead of showing them the same thing
+          // again, tied to their exact current question (not reused later,
+          // since it's tailored to this one).
+          const { data: priorSessionsForPattern } = await supabase
+            .from('mastery_remediation_sessions')
+            .select('id, attempt_id, mastery_attempts!inner(student_id)')
+            .eq('error_pattern', mostCommonError)
+            .eq('mastery_attempts.student_id', studentId);
+
+          const isRepeatForThisStudent = (priorSessionsForPattern?.length || 0) > 0;
+          const specificity = isRepeatForThisStudent ? 'question_specific' : 'generic';
+
+          let bankEntry = null;
+          if (specificity === 'generic') {
+            const { data: existingBankVideo } = await supabase
+              .from('mastery_video_bank')
+              .select('*')
+              .eq('error_pattern', mostCommonError)
+              .eq('strand', microUnit.strand || null)
+              .eq('specificity', 'generic')
+              .eq('video_status', 'ready')
+              .limit(1)
+              .maybeSingle();
+
+            if (existingBankVideo) {
+              bankEntry = existingBankVideo;
+              await supabase.from('mastery_video_bank').update({ times_reused: (existingBankVideo.times_reused || 0) + 1 }).eq('id', existingBankVideo.id);
+            }
+          }
+
+          if (!bankEntry) {
+            // Nothing to reuse - register a new bank entry (generic, for
+            // future reuse, or question_specific, tied to just this
+            // session). video_status stays pending_generation until the
+            // actual rendering pipeline (Manim prototype, still being
+            // evaluated) produces a real video_url - this endpoint never
+            // fakes a ready video.
+            const { data: newBankEntry } = await supabase
+              .from('mastery_video_bank')
+              .insert({
+                error_pattern: mostCommonError,
+                strand: microUnit.strand || null,
+                specificity,
+                title: remediationContent.explanation?.slice(0, 80) || mostCommonError,
+                source_remediation_session_id: remediationSession.id,
+              })
+              .select()
+              .single();
+            bankEntry = newBankEntry;
+          }
+
+          remediationData.videoBank = bankEntry
+            ? { id: bankEntry.id, specificity: bankEntry.specificity, status: bankEntry.video_status, videoUrl: bankEntry.video_url, reused: bankEntry.times_reused > 0 }
+            : null;
+
+          if (bankEntry) {
+            await supabase.from('mastery_remediation_sessions').update({ video_bank_id: bankEntry.id }).eq('id', remediationSession.id);
+          }
+
           // Video-style tutorial built around the student's own exact
           // missed question, not a generic re-explanation - per Aj, styled
           // like a short instructional video (hook, step-by-step walkthrough,
@@ -335,3 +405,4 @@ Respond with ONLY valid JSON, no markdown fences, no preamble:
     );
   }
 }
+
