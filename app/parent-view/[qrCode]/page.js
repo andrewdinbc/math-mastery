@@ -1,6 +1,6 @@
 'use client'
 import { useParams } from 'next/navigation'
-import ProgressChart from '../../components/ProgressChart'
+import ProgressChart from '@/components/ProgressChart'
 
 const C = { navy: '#1c3557', border: '#ddd4c2' }
 
