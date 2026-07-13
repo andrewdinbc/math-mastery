@@ -5,6 +5,29 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 import styles from './TeacherDashboard.module.css';
 
+function OffTaskAlerts() {
+  const [alerts, setAlerts] = useState([]);
+  useEffect(() => {
+    function load() {
+      fetch('/api/off-task-alerts').then((r) => r.json()).then((d) => setAlerts(d.alerts || [])).catch(() => {});
+    }
+    load();
+    const interval = setInterval(load, 20000); // poll every 20s while the dashboard is open - not a background service, only while a teacher has this page open
+    return () => clearInterval(interval);
+  }, []);
+  if (!alerts.length) return null;
+  return (
+    <div style={{ background: '#fdecea', border: '1px solid #f5b7b1', borderRadius: 10, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, color: '#c0392b', marginBottom: 6, fontSize: 14 }}>🚨 Off-task in the last 30 minutes</div>
+      {alerts.map((a) => (
+        <div key={a.id} style={{ fontSize: 13, color: '#8a3a34' }}>
+          {a.student?.display_name || a.student?.qr_code || 'A student'} — {a.reason === 'tab_hidden' ? 'left the tab' : a.reason === 'window_blur' ? 'switched away' : a.reason} at {new Date(a.created_at).toLocaleTimeString()}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TeacherDashboard({ userId }) {
   const supabase = createClientComponentClient();
   const [microUnits, setMicroUnits] = useState([]);
@@ -56,6 +79,8 @@ export default function TeacherDashboard({ userId }) {
     <main className={styles.main}>
       <div className={styles.container}>
         <h1>Teacher Dashboard</h1>
+
+        <OffTaskAlerts />
 
         {error && <div className={styles.error}>{error}</div>}
 
@@ -131,4 +156,5 @@ export default function TeacherDashboard({ userId }) {
     </main>
   );
 }
+
 
