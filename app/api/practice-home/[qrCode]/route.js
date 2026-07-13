@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
     // how they'd typically be sequenced for a class).
     const { data: units } = await supabaseAdmin
       .from('mastery_micro_units')
-      .select('id, title, description, order_index')
+      .select('id, title, description, order_index, video_url, khan_academy_video_url')
       .eq('teacher_id', student.teacher_id)
       .order('order_index', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true })
@@ -86,3 +86,4 @@ export async function GET(request, { params }) {
     return Response.json({ error: e.message }, { status: 500 })
   }
 }
+

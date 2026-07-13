@@ -90,6 +90,28 @@ export default function PracticeHomePage() {
               <div style={{ fontSize: 12, color: '#8a7d6e' }}>Step {data.currentStep} {data.attemptCount > 0 && `(attempt ${data.attemptCount + 1})`}</div>
             </div>
 
+            {(data.currentUnit.video_url || data.currentUnit.khan_academy_video_url) && (
+              <div style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 16, marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: C.gold, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Review Videos</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {data.currentUnit.video_url && (
+                    <a href={data.currentUnit.video_url} target="_blank" rel="noreferrer" style={{
+                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: '#f7f4ee', borderRadius: 8, textDecoration: 'none', color: C.navy, fontSize: 13, fontWeight: 600,
+                    }}>
+                      🎬 Math Antics
+                    </a>
+                  )}
+                  {data.currentUnit.khan_academy_video_url && (
+                    <a href={data.currentUnit.khan_academy_video_url} target="_blank" rel="noreferrer" style={{
+                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: '#f7f4ee', borderRadius: 8, textDecoration: 'none', color: C.navy, fontSize: 13, fontWeight: 600,
+                    }}>
+                      🎬 Khan Academy
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => router.push(`/practice/${data.currentUnit.id}?student=${data.studentId}`)}
               style={{ width: '100%', padding: 16, background: C.gold, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 24 }}
@@ -141,4 +163,5 @@ export default function PracticeHomePage() {
     </div>
   )
 }
+
 
