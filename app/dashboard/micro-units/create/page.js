@@ -1,9 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function CreateMicroUnitPage() {
   const supabase = createClientComponentClient();
+  const router = useRouter();
+  const [checkingRole, setCheckingRole] = useState(true);
+
+  // Real security fix (2026-07-13): this page previously only checked
+  // "is anyone logged in" - not whether they're actually a teacher. Any
+  // authenticated account, including a student's, could create units
+  // and would have their own id blindly stored as teacher_id. Now
+  // verified against mastery_teachers before rendering anything.
+  useEffect(() => {
+    async function checkRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/auth/login'); return; }
+      const { data: teacher } = await supabase.from('mastery_teachers').select('id').eq('id', user.id).maybeSingle();
+      if (!teacher) { router.push('/dashboard'); return; }
+      setCheckingRole(false);
+    }
+    checkRole();
+  }, [])
+
   const [aiTopic, setAiTopic] = useState('');
   const [aiGrade, setAiGrade] = useState('');
   const [language, setLanguage] = useState('english');
@@ -18,6 +38,8 @@ export default function CreateMicroUnitPage() {
   const [resourceUrl, setResourceUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+
+  if (checkingRole) return null;
 
   async function handleUploadResource(e) {
     const file = e.target.files?.[0];
@@ -268,6 +290,7 @@ if (typeof document !== 'undefined' && !document.getElementById('mm-spin-keyfram
   style.textContent = '@keyframes mm-spin { to { transform: rotate(360deg); } }';
   document.head.appendChild(style);
 }
+
 
 
 
