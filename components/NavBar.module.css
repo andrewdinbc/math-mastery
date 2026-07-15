@@ -1,57 +1,72 @@
+/* Chalk & Circuit ecosystem tokens -- matches Student Portfolio,
+   Lesson Planner, and Assessment Tool: navy #1c3557, gold #b57c2a,
+   border #e3ddd0, Georgia serif for the brand wordmark. */
+
 .navbar {
   background-color: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #e3ddd0;
+  padding: 12px 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  font-family: Georgia, serif;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #0070f3;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1c3557;
   text-decoration: none;
+}
+
+.logoAccent {
+  color: #b57c2a;
+}
+
+.logoProduct {
+  font-weight: 400;
+  color: #1c3557;
 }
 
 .menu {
   display: flex;
   gap: 1.5rem;
   align-items: center;
+  font-family: 'Segoe UI', sans-serif;
 }
 
 .link {
-  color: #333;
+  color: #1c3557;
   text-decoration: none;
+  font-size: 13px;
   transition: color 0.2s;
 }
 
 .link:hover {
-  color: #0070f3;
+  color: #b57c2a;
 }
 
 .logoutBtn {
-  background-color: #f0f0f0;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: #f7f5f0;
+  color: #1c3557;
+  border: 1px solid #e3ddd0;
+  font-size: 13px;
 }
 
 .logoutBtn:hover:not(:disabled) {
-  background-color: #e0e0e0;
+  background-color: #e3ddd0;
 }
 
 .logoutBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
