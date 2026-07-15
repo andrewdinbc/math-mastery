@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import ProgressChart from '@/components/ProgressChart'
-
-const C = { navy: '#1c3557', gold: '#b57c2a', green: '#2e7d4f', red: '#c0392b', border: '#ddd4c2' }
+import { S } from '@/lib/studentTheme'
 
 // Locked-session pattern reused from the Quiz Maker work - can't actually
 // prevent a student leaving the tab/app from a webpage, only detect it,
@@ -25,6 +24,34 @@ function playAlertBeep() {
     osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
     osc.stop(ctx.currentTime + 0.5)
   } catch { /* alert still logs to the teacher either way */ }
+}
+
+// Simple SVG progress ring -- REAL data (unitsCompleted/totalUnits), same
+// numbers the old plain-text version showed, just visualized. Matches the
+// progress-ring treatment in the desktop dashboard's reference design.
+function ProgressRing({ completed, total }) {
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+  const radius = 30
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (pct / 100) * circumference
+  return (
+    <div style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
+      <svg width="76" height="76" viewBox="0 0 76 76">
+        <circle cx="38" cy="38" r={radius} fill="none" stroke={S.border} strokeWidth="8" />
+        <circle
+          cx="38" cy="38" r={radius} fill="none" stroke={S.purple} strokeWidth="8"
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          transform="rotate(-90 38 38)"
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, fontWeight: 800, color: S.text,
+      }}>
+        {pct}%
+      </div>
+    </div>
+  )
 }
 
 export default function PracticeHomePage() {
@@ -65,45 +92,57 @@ export default function PracticeHomePage() {
   }, [qrCode])
 
   if (error) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', padding: 24, textAlign: 'center' }}>
-      <div style={{ color: C.red }}>{error}</div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', sans-serif", padding: 24, textAlign: 'center' }}>
+      <div style={{ color: '#C0396B' }}>{error}</div>
     </div>
   )
-  if (!data) return <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif' }}>Loading…</div>
+  if (!data) return <div style={{ padding: 40, fontFamily: "'Segoe UI', sans-serif" }}>Loading…</div>
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f7f4ee', fontFamily: 'system-ui, sans-serif', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: S.bg, fontFamily: "'Segoe UI', sans-serif", padding: 24 }}>
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
-        <h1 style={{ color: C.navy, fontSize: 22, marginBottom: 4 }}>Your Practice</h1>
-        <p style={{ fontSize: 13, color: '#8a7d6e', marginBottom: 24 }}>{data.unitsCompleted} of {data.totalUnits} units mastered</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <ProgressRing completed={data.unitsCompleted} total={data.totalUnits} />
+          <div>
+            <h1 style={{ color: S.text, fontSize: 22, margin: '0 0 4px' }}>Your Practice</h1>
+            <p style={{ fontSize: 13, color: S.muted, margin: 0 }}>{data.unitsCompleted} of {data.totalUnits} units mastered</p>
+            {/* MOCK -- no streak schema exists yet. Visual only. */}
+            <span style={{
+              display: 'inline-block', marginTop: 6, background: '#fff', border: `1px solid ${S.border}`,
+              borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: S.text,
+            }}>
+              🔥 -- day streak
+            </span>
+          </div>
+        </div>
 
         {!data.currentUnit ? (
-          <div style={{ background: '#eef7f0', borderRadius: 10, padding: 24, textAlign: 'center', color: C.green, fontWeight: 700 }}>
+          <div style={{ background: '#EAFBF1', borderRadius: 14, padding: 24, textAlign: 'center', color: S.green, fontWeight: 700 }}>
             🎉 You&apos;ve mastered every assigned unit! Ask your teacher what&apos;s next.
           </div>
         ) : (
           <>
-            <div style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 20, marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: C.gold, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Current Unit</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{data.currentUnit.title}</div>
+            <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${S.border}`, padding: 20, marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: S.purple, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Current Unit</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: S.text, marginBottom: 4 }}>{data.currentUnit.title}</div>
               <div style={{ fontSize: 13, color: '#5c5245', marginBottom: 12 }}>{data.currentUnit.description}</div>
-              <div style={{ fontSize: 12, color: '#8a7d6e' }}>Step {data.currentStep} {data.attemptCount > 0 && `(attempt ${data.attemptCount + 1})`}</div>
+              <div style={{ fontSize: 12, color: S.muted }}>Step {data.currentStep} {data.attemptCount > 0 && `(attempt ${data.attemptCount + 1})`}</div>
             </div>
 
             {(data.currentUnit.video_url || data.currentUnit.khan_academy_video_url) && (
-              <div style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: C.gold, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Review Videos</div>
+              <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${S.border}`, padding: 16, marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: S.purple, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Review Videos</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {data.currentUnit.video_url && (
                     <a href={data.currentUnit.video_url} target="_blank" rel="noreferrer" style={{
-                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: '#f7f4ee', borderRadius: 8, textDecoration: 'none', color: C.navy, fontSize: 13, fontWeight: 600,
+                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: S.purpleLight, borderRadius: 10, textDecoration: 'none', color: S.text, fontSize: 13, fontWeight: 600,
                     }}>
                       🎬 Math Antics
                     </a>
                   )}
                   {data.currentUnit.khan_academy_video_url && (
                     <a href={data.currentUnit.khan_academy_video_url} target="_blank" rel="noreferrer" style={{
-                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: '#f7f4ee', borderRadius: 8, textDecoration: 'none', color: C.navy, fontSize: 13, fontWeight: 600,
+                      flex: 1, minWidth: 140, textAlign: 'center', padding: 10, background: S.purpleLight, borderRadius: 10, textDecoration: 'none', color: S.text, fontSize: 13, fontWeight: 600,
                     }}>
                       🎬 Khan Academy
                     </a>
@@ -114,25 +153,25 @@ export default function PracticeHomePage() {
 
             <button
               onClick={() => router.push(`/practice/${data.currentUnit.id}?student=${data.studentId}`)}
-              style={{ width: '100%', padding: 16, background: C.gold, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 24 }}
+              style={{ width: '100%', padding: 16, background: S.purple, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 24 }}
             >
               ▶ Practice Questions
             </button>
 
             {data.remediation?.length > 0 && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>📝 Help With Mistakes You Made</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: S.text, marginBottom: 10 }}>📝 Help With Mistakes You Made</div>
                 {data.remediation.map((r) => {
                   const tutorial = r.remediation_content?.videoTutorial
                   const isOpen = openRemediation === r.id
                   return (
-                    <div key={r.id} style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 16, marginBottom: 10 }}>
+                    <div key={r.id} style={{ background: '#fff', borderRadius: 14, border: `1px solid ${S.border}`, padding: 16, marginBottom: 10 }}>
                       <button
                         onClick={() => setOpenRemediation(isOpen ? null : r.id)}
                         style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
-                        <div style={{ fontWeight: 700, color: C.navy, fontSize: 14 }}>{tutorial?.title || r.error_pattern?.replace(/_/g, ' ') || 'Review this mistake'}</div>
-                        <div style={{ fontSize: 11, color: '#8a7d6e' }}>{isOpen ? 'Tap to close' : 'Tap to read the tutorial'}</div>
+                        <div style={{ fontWeight: 700, color: S.text, fontSize: 14 }}>{tutorial?.title || r.error_pattern?.replace(/_/g, ' ') || 'Review this mistake'}</div>
+                        <div style={{ fontSize: 11, color: S.muted }}>{isOpen ? 'Tap to close' : 'Tap to read the tutorial'}</div>
                       </button>
                       {isOpen && (
                         <>
@@ -140,17 +179,17 @@ export default function PracticeHomePage() {
                             <div style={{ marginTop: 10, marginBottom: 4 }}>
                               {r.videoBank.video_status === 'ready' && r.videoBank.video_url ? (
                                 <a href={r.videoBank.video_url} target="_blank" rel="noreferrer" style={{
-                                  display: 'inline-block', padding: '6px 12px', background: C.navy, color: '#fff', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600,
+                                  display: 'inline-block', padding: '6px 12px', background: S.purple, color: '#fff', borderRadius: 8, textDecoration: 'none', fontSize: 12, fontWeight: 600,
                                 }}>
                                   🎬 Watch the video
                                 </a>
                               ) : (
-                                <div style={{ fontSize: 11, color: '#8a7d6e', fontStyle: 'italic' }}>
+                                <div style={{ fontSize: 11, color: S.muted, fontStyle: 'italic' }}>
                                   🎬 A short video for this is being made — read the tutorial below for now.
                                 </div>
                               )}
                               {r.videoBank.times_reused > 0 && (
-                                <div style={{ fontSize: 10, color: '#8a7d6e', marginTop: 4 }}>This video has already helped other students with the same kind of mistake.</div>
+                                <div style={{ fontSize: 10, color: S.muted, marginTop: 4 }}>This video has already helped other students with the same kind of mistake.</div>
                               )}
                             </div>
                           )}
@@ -162,11 +201,11 @@ export default function PracticeHomePage() {
                           {tutorial.steps?.map((s, i) => (
                             <div key={i} style={{ marginBottom: 8 }}>
                               <div>{s.narration}</div>
-                              {s.workShown && <div style={{ fontFamily: 'monospace', background: '#f7f4ee', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>{s.workShown}</div>}
+                              {s.workShown && <div style={{ fontFamily: 'monospace', background: S.purpleLight, padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>{s.workShown}</div>}
                             </div>
                           ))}
                           {tutorial.commonMistakeCallout && (
-                            <div style={{ background: '#fdecea', padding: 10, borderRadius: 6, marginTop: 10, fontSize: 12 }}>{tutorial.commonMistakeCallout}</div>
+                            <div style={{ background: '#FFEAF0', padding: 10, borderRadius: 8, marginTop: 10, fontSize: 12 }}>{tutorial.commonMistakeCallout}</div>
                           )}
                         </div>
                       )}
@@ -178,13 +217,10 @@ export default function PracticeHomePage() {
           </>
         )}
 
-        <div style={{ background: '#fff', borderRadius: 10, border: `1px solid ${C.border}`, padding: 20, marginTop: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 14, border: `1px solid ${S.border}`, padding: 20, marginTop: 24 }}>
           <ProgressChart qrCode={qrCode} viewer="student" />
         </div>
       </div>
     </div>
   )
 }
-
-
-
