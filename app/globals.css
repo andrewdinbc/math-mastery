@@ -4,11 +4,15 @@
   box-sizing: border-box;
 }
 
+/* Chalk & Circuit ecosystem tokens -- matches Student Portfolio, Lesson
+   Planner, and Assessment Tool: navy #1c3557, gold #b57c2a,
+   border #e3ddd0, bg #f7f5f0. */
+
 html, body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
-  background-color: #f9f9f9;
+  background-color: #f7f5f0;
   color: #333;
 }
 
@@ -22,27 +26,27 @@ button {
 }
 
 button.primary {
-  background-color: #0070f3;
+  background-color: #b57c2a;
   color: white;
 }
 
 button.primary:hover {
-  background-color: #0051cc;
+  background-color: #96631f;
 }
 
 button.secondary {
-  background-color: #f0f0f0;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: #f7f5f0;
+  color: #1c3557;
+  border: 1px solid #e3ddd0;
 }
 
 button.secondary:hover {
-  background-color: #e0e0e0;
+  background-color: #e3ddd0;
 }
 
 input, textarea, select {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid #e3ddd0;
   border-radius: 4px;
   font-size: 1rem;
   font-family: inherit;
@@ -50,6 +54,6 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #0070f3;
-  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+  border-color: #1c3557;
+  box-shadow: 0 0 0 3px rgba(28, 53, 87, 0.1);
 }
