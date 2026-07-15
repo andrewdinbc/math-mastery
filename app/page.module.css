@@ -15,7 +15,7 @@
 .container h1 {
   font-size: 3rem;
   margin-bottom: 1rem;
-  color: #0070f3;
+  color: #1c3557;
 }
 
 .subtitle {
@@ -35,13 +35,13 @@
   padding: 1.5rem;
   background: white;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #e3ddd0;
 }
 
 .feature h3 {
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
-  color: #0070f3;
+  color: #b57c2a;
 }
 
 .feature p {
@@ -67,20 +67,20 @@
 }
 
 .primaryBtn {
-  background-color: #0070f3;
+  background-color: #b57c2a;
   color: white;
 }
 
 .primaryBtn:hover {
-  background-color: #0051cc;
+  background-color: #96631f;
 }
 
 .secondaryBtn {
   background-color: white;
-  color: #0070f3;
-  border: 2px solid #0070f3;
+  color: #1c3557;
+  border: 2px solid #1c3557;
 }
 
 .secondaryBtn:hover {
-  background-color: #f0f7ff;
+  background-color: #f7f5f0;
 }
