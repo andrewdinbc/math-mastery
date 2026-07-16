@@ -168,6 +168,29 @@ scorePct should be the percentage of questions answered correctly.`;
       );
     }
 
+    // Award 1 token the FIRST time this unit is mastered -- guarded so
+    // retaking an already-mastered unit doesn't farm tokens. This is the
+    // default earn rule Aj asked for ("earn tokens ... to modernize their
+    // avatar"); the token-spend/avatar-customization side isn't built yet
+    // since the avatar assets aren't finalized.
+    if (passed) {
+      const { data: priorPasses } = await supabase
+        .from('mastery_attempts')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('micro_unit_id', microUnitId)
+        .eq('passed_threshold', true)
+        .neq('id', insertedAttempt.id);
+
+      if (!priorPasses || priorPasses.length === 0) {
+        await supabase.from('mastery_token_transactions').insert({
+          student_id: studentId,
+          amount: 1,
+          reason: 'unit_mastered',
+        });
+      }
+    }
+
     let remediationData = null;
 
     // If failed, generate remediation session
@@ -405,4 +428,5 @@ Respond with ONLY valid JSON, no markdown fences, no preamble:
     );
   }
 }
+
 
