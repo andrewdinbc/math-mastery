@@ -4,9 +4,10 @@ import { cookies } from 'next/headers'
 
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-// GET: student-facing (by qrCode, resolves teacher, no auth needed -- same
-// pattern as /api/practice-home) OR teacher-facing (authenticated, their
-// own upcoming events for the "manage events" UI).
+// GET: resolves teacherId three ways --
+// 1. qrCode param (mobile practice-home flow, no auth)
+// 2. authenticated session that's a student (mastery_students.id = auth user id, desktop dashboard)
+// 3. authenticated session that's a teacher (their own event-management UI)
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const qrCode = searchParams.get('qrCode')
@@ -26,7 +27,14 @@ export async function GET(request) {
       const supabase = createServerComponentClient({ cookies })
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 })
-      teacherId = user.id
+
+      const { data: student } = await supabaseAdmin
+        .from('mastery_students')
+        .select('teacher_id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      teacherId = student ? student.teacher_id : user.id // student -> their teacher; else assume the logged-in user IS the teacher
     }
 
     const { data: events, error } = await supabaseAdmin
