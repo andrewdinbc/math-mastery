@@ -70,6 +70,68 @@ function OffTaskAlerts() {
   );
 }
 
+function EventsManager() {
+  const [events, setEvents] = useState([]);
+  const [title, setTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = () => fetch('/api/events').then((r) => r.json()).then((d) => setEvents(d.events || [])).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  async function addEvent(e) {
+    e.preventDefault();
+    if (!title.trim() || !eventDate) return;
+    setSaving(true);
+    try {
+      await fetch('/api/events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), eventDate, description: description.trim() || null }),
+      });
+      setTitle(''); setEventDate(''); setDescription('');
+      load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeEvent(id) {
+    await fetch(`/api/events?id=${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #ddd4c2', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, color: '#1c3557', marginBottom: 10, fontSize: 14 }}>📅 Upcoming Events (shown on students' calendars)</div>
+      <form onSubmit={addEvent} style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input type="text" placeholder="Event title" value={title} onChange={(e) => setTitle(e.target.value)}
+          style={{ flex: 1, minWidth: 160, padding: 8, borderRadius: 6, border: '1px solid #ddd4c2' }} />
+        <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
+          style={{ padding: 8, borderRadius: 6, border: '1px solid #ddd4c2' }} />
+        <button type="submit" disabled={saving} style={{
+          padding: '8px 16px', background: '#b57c2a', color: '#fff', border: 'none', borderRadius: 6,
+          fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+        }}>
+          {saving ? 'Adding…' : '+ Add'}
+        </button>
+      </form>
+      {events.length === 0 ? (
+        <p style={{ fontSize: 13, color: '#8a7d6e' }}>No upcoming events yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {events.map((ev) => (
+            <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderTop: '1px solid #f0ece1' }}>
+              <span><strong>{new Date(ev.event_date + 'T00:00:00').toLocaleDateString()}</strong> — {ev.title}</span>
+              <button onClick={() => removeEvent(ev.id)} style={{ background: 'none', border: 'none', color: '#c0392b', fontSize: 12, cursor: 'pointer' }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TeacherDashboard({ userId }) {
   const supabase = createClientComponentClient();
   const [microUnits, setMicroUnits] = useState([]);
@@ -123,6 +185,7 @@ export default function TeacherDashboard({ userId }) {
         <h1>Teacher Dashboard</h1>
 
         <DisplaySettings />
+        <EventsManager />
         <OffTaskAlerts />
 
         {error && <div className={styles.error}>{error}</div>}
@@ -199,5 +262,6 @@ export default function TeacherDashboard({ userId }) {
     </main>
   );
 }
+
 
 
