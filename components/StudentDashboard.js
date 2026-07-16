@@ -52,11 +52,27 @@ export default function StudentDashboard({ userId }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mascots, setMascots] = useState([]);
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [earnedRewards, setEarnedRewards] = useState([]);
+  const [showMascotPicker, setShowMascotPicker] = useState(false);
 
   useEffect(() => {
     fetchData();
     fetch('/api/events').then((r) => r.json()).then((d) => setEvents(d.events || [])).catch(() => {});
+    fetch('/api/characters?type=mascot').then((r) => r.json()).then((d) => setMascots(d.characters || [])).catch(() => {});
+    fetch('/api/tokens').then((r) => r.json()).then((d) => setTokenBalance(d.balance || 0)).catch(() => {});
+    fetch('/api/rewards?mode=earned').then((r) => r.json()).then((d) => setEarnedRewards(d.earned || [])).catch(() => {});
   }, []);
+
+  async function selectMascot(characterId) {
+    setShowMascotPicker(false);
+    await fetch('/api/characters/select', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId, slot: 'mascot' }),
+    });
+    fetchData();
+  }
 
   const fetchData = async () => {
     try {
@@ -139,14 +155,43 @@ export default function StudentDashboard({ userId }) {
 
         <div className={styles.content}>
           <div className={styles.topBar}>
-            <div>
-              <h1 className={styles.greeting}>Hi, {firstName}! 👋</h1>
-              <p className={styles.subGreeting}>Ready to practice some math today?</p>
+            <div className={styles.identityRow}>
+              {/* Avatar/mascot space -- click to pick from teacher-enabled
+                  characters. Avatar slot (representing the student) isn't
+                  populated yet -- male/female avatar assets are still
+                  coming from Aj. */}
+              <div className={styles.avatarSpace} onClick={() => setShowMascotPicker((v) => !v)} title="Choose your mascot">
+                {studentInfo?.selected_mascot_id && mascots.find((m) => m.id === studentInfo.selected_mascot_id) ? (
+                  <img
+                    src={mascots.find((m) => m.id === studentInfo.selected_mascot_id).image_url}
+                    alt="Your mascot"
+                    className={styles.avatarImg}
+                  />
+                ) : (
+                  <span className={styles.avatarPlaceholder}>+ Pick a mascot</span>
+                )}
+                {showMascotPicker && (
+                  <div className={styles.mascotPicker} onClick={(e) => e.stopPropagation()}>
+                    {mascots.length === 0 ? (
+                      <p style={{ fontSize: 12, color: '#8B87A0' }}>No mascots enabled yet -- ask your teacher!</p>
+                    ) : (
+                      mascots.map((m) => (
+                        <img key={m.id} src={m.image_url} alt={m.name} className={styles.mascotOption} onClick={() => selectMascot(m.id)} />
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <h1 className={styles.greeting}>Hi, {firstName}! 👋</h1>
+                <p className={styles.subGreeting}>Ready to practice some math today?</p>
+              </div>
             </div>
-            {/* MOCK -- no points/streak schema exists yet. Visual only. */}
             <div className={styles.statPills}>
+              {/* MOCK -- no streak schema exists yet. Visual only. */}
               <span className={styles.statPill}>🔥 -- day streak</span>
-              <span className={styles.statPill}>⭐ -- points</span>
+              {/* Real -- from mastery_token_transactions, +1 per unit first-mastered. */}
+              <span className={styles.statPill}>⭐ {tokenBalance} token{tokenBalance !== 1 ? 's' : ''}</span>
             </div>
           </div>
 
@@ -195,23 +240,23 @@ export default function StudentDashboard({ userId }) {
             </div>
           </section>
 
-          {/* Rewards -- visual only for now. What counts as "going above
-              and beyond" is a product decision Aj still needs to make
-              (which tasks, what the reward actually is) before this can
-              be wired to real data. */}
+          {/* Rewards -- real, teacher-defined badges/prizes, awarded via
+              the teacher dashboard's Rewards manager. */}
           <section id="rewards" className={styles.rewardsSection}>
             <h2 className={styles.sectionTitle}>🏆 My Rewards</h2>
             <p className={styles.sectionSubtitle}>Earn rewards for finishing units and going above and beyond!</p>
-            {masteredCount === 0 ? (
+            {earnedRewards.length === 0 ? (
               <div className={styles.rewardPlaceholder}>Master your first unit to earn a reward!</div>
             ) : (
               <div className={styles.rewardRow}>
-                {Array.from({ length: Math.min(masteredCount, 4) }).map((_, i) => (
-                  <div key={i} className={styles.rewardBadge} style={{ background: CARD_ACCENTS[i % CARD_ACCENTS.length] }}>
-                    ⭐
+                {earnedRewards.map((er) => (
+                  <div key={er.id} className={styles.rewardBadge} style={{
+                    background: er.mastery_rewards?.reward_type === 'prize' ? '#F4B740' : '#7C5CFC',
+                  }} title={er.mastery_rewards?.name}>
+                    {er.mastery_rewards?.reward_type === 'prize' ? '🎁' : '🎖️'}
                   </div>
                 ))}
-                <span className={styles.rewardCaption}>{masteredCount} unit{masteredCount !== 1 ? 's' : ''} mastered</span>
+                <span className={styles.rewardCaption}>{earnedRewards.length} reward{earnedRewards.length !== 1 ? 's' : ''} earned</span>
               </div>
             )}
           </section>
@@ -246,3 +291,4 @@ export default function StudentDashboard({ userId }) {
     </div>
   );
 }
+
