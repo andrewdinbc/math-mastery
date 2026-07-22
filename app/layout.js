@@ -4,6 +4,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import DevModePanel from '@/developer-mode/DevModePanel';
 import ChromeWrapper from '@/components/ChromeWrapper';
+import MorpheusChat from '@/components/MorpheusChat';
 
 // force-dynamic: this layout calls supabase.auth.getSession() on every
 // render, which requires real env vars at request time - without this,
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }) {
         >
           {children}
         </ChromeWrapper>
+              <MorpheusChat productName="Math Mastery Studio" />
       </body>
     </html>
   );
