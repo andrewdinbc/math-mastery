@@ -44,6 +44,11 @@ export default async function RootLayout({ children }) {
         >
           {children}
         </ChromeWrapper>
+        <footer style={{ padding: "20px 24px", borderTop: "1px solid #e3ddd0", fontSize: 12, color: "#6b6459", textAlign: "center", background: "#f7f5f0" }}>
+          <a href="https://morpheus-scheduler.vercel.app/data-residency" target="_blank" rel="noopener noreferrer" style={{ color: "#1c3557", textDecoration: "underline" }}>
+            Data Residency &amp; Privacy Disclosure
+          </a>
+        </footer>
               <MorpheusChat productName="Math Mastery Studio" />
       </body>
     </html>
