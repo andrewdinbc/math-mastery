@@ -4,11 +4,6 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import styles from './page.module.css';
 
-// force-dynamic: same bug class fixed elsewhere - without this, Next.js
-// can serve a stale cached 'no session' result even when the user is
-// actually logged in, making clicking the logo look like it logs you out.
-export const dynamic = 'force-dynamic';
-
 export default async function Home() {
   const supabase = createServerComponentClient({ cookies });
   const {
@@ -22,7 +17,7 @@ export default async function Home() {
   return (
     <main className={styles.main}>
       <div className={styles.container}>
-        <h1>Math Mastery Studio</h1>
+        <h1>Mastery Studio</h1>
         <p className={styles.subtitle}>
           Self-paced, mastery-gated math practice
         </p>

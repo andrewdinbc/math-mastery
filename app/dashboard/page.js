@@ -5,7 +5,7 @@ import TeacherDashboard from '@/components/TeacherDashboard';
 import StudentDashboard from '@/components/StudentDashboard';
 
 export const metadata = {
-  title: 'Dashboard - Math Mastery Studio',
+  title: 'Dashboard - Mastery Studio',
 };
 
 export default async function DashboardPage() {
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   // Check if user is a teacher
   const { data: teacher } = await supabase
-    .from('mastery_teachers')
+    .from('teachers')
     .select('id')
     .eq('id', session.user.id)
     .single();

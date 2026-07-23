@@ -1,20 +1,10 @@
-// force fresh deploy of all 4 missing pages 1783634715
 import './globals.css';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import DevModePanel from '@/developer-mode/DevModePanel';
-import ChromeWrapper from '@/components/ChromeWrapper';
-import MorpheusChat from '@/components/MorpheusChat';
-
-// force-dynamic: this layout calls supabase.auth.getSession() on every
-// render, which requires real env vars at request time - without this,
-// Next.js tries to statically prerender it (and every page under it,
-// including auto-generated ones like /_not-found) at BUILD time, when env
-// vars may not be set yet, causing 'Invalid supabaseUrl' build failures.
-export const dynamic = 'force-dynamic';
+import NavBar from '@/components/NavBar';
 
 export const metadata = {
-  title: 'Math Mastery Studio',
+  title: 'Mastery Studio',
   description: 'Self-paced mastery-gated math practice',
 };
 
@@ -27,29 +17,8 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <ChromeWrapper
-          session={session}
-          devModePanel={
-            <DevModePanel
-              productName="Math Mastery Studio"
-              sourceRepo="andrewdinbc/math-mastery"
-              userEmail="andrewsinbc3@gmail.com"
-              userKey="owner"
-              morpheusUrl="https://morpheus-scheduler.vercel.app"
-              enabled={true}
-              audienceLabel="a K-12 teacher using mastery-based math practice"
-              mode="personal"
-            />
-          }
-        >
-          {children}
-        </ChromeWrapper>
-        <footer style={{ padding: "20px 24px", borderTop: "1px solid #e3ddd0", fontSize: 12, color: "#6b6459", textAlign: "center", background: "#f7f5f0" }}>
-          <a href="https://morpheus-scheduler.vercel.app/data-residency" target="_blank" rel="noopener noreferrer" style={{ color: "#1c3557", textDecoration: "underline" }}>
-            Data Residency &amp; Privacy Disclosure
-          </a>
-        </footer>
-              <MorpheusChat productName="Math Mastery Studio" />
+        <NavBar session={session} />
+        {children}
       </body>
     </html>
   );
